@@ -58,7 +58,7 @@ class MMEstimator:
         self.n_iter_ = 0
         self.s_estimator_ = None
 
-    def fit(self, X, y, initial_s_estimator=None):
+    def fit(self, X, y, initial_s_estimator=None, scale=None):
         """
         Menaksir dan mengembalikan parameter regresi Estimasi-MM dari data X dan y.
         """
@@ -76,7 +76,7 @@ class MMEstimator:
         else:
             X_design = X
 
-        # Dapatkan estimasi awal beta_S dan skala konvergen sigma_sn dari Estimasi-S Susanti
+        # Dapatkan estimasi awal beta_S dan skala konvergen sigma_sn dari Estimasi-S
         if initial_s_estimator is None:
             s_est = SEstimator(fit_intercept=False)
             s_params = s_est.fit(X_design, y)
@@ -90,7 +90,10 @@ class MMEstimator:
             s_est = None
             params = np.asarray(initial_s_estimator, dtype=float).copy()
             residuals = y - X_design @ params
-            fixed_scale = calculate_mad_scale(residuals, divisor=0.6745)
+            if scale is not None:
+                fixed_scale = float(scale)
+            else:
+                fixed_scale = calculate_mad_scale(residuals, divisor=0.6745)
 
         self.s_estimator_ = s_est
         self.scale_s_ = fixed_scale
