@@ -225,7 +225,7 @@ def main():
     final_file = args.file
     final_test_size = args.test_size
     final_random_state = args.random_state
-    final_fit_intercept = False if args.no_intercept else default_fit_intercept
+    final_fit_intercept = True if args.no_intercept else default_fit_intercept
 
     run_estimate_mm(
         file_path=final_file,
