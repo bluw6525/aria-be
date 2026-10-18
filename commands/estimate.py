@@ -24,43 +24,7 @@ from app.modules.regression.metrics import (
 )
 
 
-def split_train_test(X, y, test_size=0.2, random_state=None, shuffle=True):
-    """
-    Membagi data fitur X dan target y menjadi data latih (train) dan data uji (test).
-
-    Parameters
-    ----------
-    X : np.ndarray or pd.DataFrame
-        Matriks fitur independen.
-    y : np.ndarray or pd.Series
-        Vektor target dependen.
-    test_size : float, default=0.2
-        Proporsi data uji (misal 0.2 = 20% data uji, 80% data latih).
-    random_state : int or None, default=None
-        Seed pengacakan. Jika None (tidak diisi), pengacakan bersifat non-deterministik (acak setiap kali dijalankan).
-    shuffle : bool, default=True
-        Apakah data diacak sebelum dibagi.
-
-    Returns
-    -------
-    X_train, X_test, y_train, y_test : np.ndarray
-    """
-    X = np.asarray(X, dtype=float)
-    y = np.asarray(y, dtype=float)
-    n_samples = len(y)
-
-    indices = np.arange(n_samples)
-    if shuffle:
-        rng = np.random.default_rng(random_state)
-        rng.shuffle(indices)
-
-    n_test = int(np.round(n_samples * test_size))
-    n_train = n_samples - n_test
-
-    train_idx = indices[:n_train]
-    test_idx = indices[n_train:]
-
-    return X[train_idx], X[test_idx], y[train_idx], y[test_idx]
+from commands.utils import split_train_test
 
 
 def run_estimate_mm(
