@@ -28,9 +28,9 @@ from app.modules.regression.algorithms.m_estimator import MEstimator
 from app.modules.regression.algorithms.mm_estimator import MMEstimator
 from app.modules.regression.metrics import calculate_rmse, calculate_mae, calculate_r2
 from commands.utils import split_data, predict_model
-from commands.balanced_200_seeds import BALANCED_200_SEEDS
+from commands.balanced_200_seeds import BALANCED_200_SEEDS, RANDOM_SEED_2
 
-MONTE_CARLO_SEEDS = random.sample(range(1, 10000), 200)
+MONTE_CARLO_SEEDS = RANDOM_SEED_2
 print(MONTE_CARLO_SEEDS)
 
 
@@ -255,13 +255,16 @@ async def run_batch_and_save_to_db(
     print("=" * 76)
 
     # Simpan rangkuman perbandingan ke file CSV
+    summary_dir = PROJECT_ROOT / "commands" / "summary" / "estimation"
+    summary_dir.mkdir(parents=True, exist_ok=True)
+
     df_summary = pd.DataFrame(summary_rows)
-    csv_path = path_obj.parent / f"summary_{path_obj.stem}.csv"
+    csv_path = summary_dir / f"summary_{path_obj.stem}.csv"
     try:
         df_summary.to_csv(csv_path, index=False)
         print(f"Rangkuman berhasil disimpan ke CSV: {csv_path}")
     except PermissionError:
-        fallback_path = path_obj.parent / f"summary_{path_obj.stem}_new.csv"
+        fallback_path = summary_dir / f"summary_{path_obj.stem}_new.csv"
         df_summary.to_csv(fallback_path, index=False)
         print(f"PERINGATAN: '{csv_path.name}' sedang dibuka aplikasi lain (seperti Excel).")
         print(f"Rangkuman dialihkan dan berhasil disimpan ke: {fallback_path}")

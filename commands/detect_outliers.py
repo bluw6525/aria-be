@@ -21,8 +21,10 @@ if str(PROJECT_ROOT) not in sys.path:
 from app.modules.regression.algorithms.ols_estimator import OLSEstimator
 from app.modules.regression.outliers import detect_outliers, calculate_leverage, calculate_dffits
 
-OUTPUT_DIR = PROJECT_ROOT / "commands" / "plots"
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+PLOTS_DIR = PROJECT_ROOT / "commands" / "plots" / "outlier"
+SUMMARY_DIR = PROJECT_ROOT / "commands" / "summary" / "outlier"
+PLOTS_DIR.mkdir(parents=True, exist_ok=True)
+SUMMARY_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def plot_outlier_diagnostics(
@@ -56,7 +58,7 @@ def plot_outlier_diagnostics(
     ax.legend()
     plt.tight_layout()
 
-    lev_plot_path = OUTPUT_DIR / f"leverage_plot_{dataset_base_name}.png"
+    lev_plot_path = PLOTS_DIR / f"leverage_plot_{dataset_base_name}.png"
     plt.savefig(lev_plot_path, dpi=300)
     plt.close()
     print(f"  [SAVED] Grafik Leverage : {lev_plot_path}")
@@ -78,7 +80,7 @@ def plot_outlier_diagnostics(
     ax.legend()
     plt.tight_layout()
 
-    dffits_plot_path = OUTPUT_DIR / f"dffits_plot_{dataset_base_name}.png"
+    dffits_plot_path = PLOTS_DIR / f"dffits_plot_{dataset_base_name}.png"
     plt.savefig(dffits_plot_path, dpi=300)
     plt.close()
     print(f"  [SAVED] Grafik DFFITS   : {dffits_plot_path}")
@@ -109,14 +111,14 @@ def plot_outlier_diagnostics(
     ax.legend()
     plt.tight_layout()
 
-    inf_plot_path = OUTPUT_DIR / f"influence_map_{dataset_base_name}.png"
+    inf_plot_path = PLOTS_DIR / f"influence_map_{dataset_base_name}.png"
     plt.savefig(inf_plot_path, dpi=300)
     plt.close()
     print(f"  [SAVED] Grafik Peta Pengaruh: {inf_plot_path}")
 
 
 def run_outlier_detection(
-    file_path: str = "Jakarta_Selatan.xlsx",
+    file_path: str = "Jakarta.xlsx",
     fit_intercept: bool = True
 ):
     path_obj = Path(file_path)
@@ -205,13 +207,13 @@ def run_outlier_detection(
 
     # Simpan hasil lengkap ke CSV
     dataset_stem = path_obj.stem
-    csv_filename = OUTPUT_DIR / f"outlier_detection_{dataset_stem}.csv"
+    csv_filename = SUMMARY_DIR / f"outlier_detection_{dataset_stem}.csv"
 
     try:
         df_diag.to_csv(csv_filename, index=False)
         print(f"\n[EXPORT] File CSV (.csv) : {csv_filename}")
     except PermissionError:
-        fallback_csv = OUTPUT_DIR / f"outlier_detection_{dataset_stem}_new.csv"
+        fallback_csv = SUMMARY_DIR / f"outlier_detection_{dataset_stem}_new.csv"
         df_diag.to_csv(fallback_csv, index=False)
         print(f"\n[PERINGATAN] '{csv_filename.name}' sedang dibuka di aplikasi lain.")
         print(f"[EXPORT] Disimpan ke : {fallback_csv}")
@@ -224,7 +226,7 @@ def run_outlier_detection(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Deteksi Outlier Leverage dan DFFITS")
-    parser.add_argument("--file", type=str, default="Jakarta_Selatan.xlsx", help="Nama/Path file dataset")
+    parser.add_argument("--file", type=str, default="Jakarta_Pusat.xlsx", help="Nama/Path file dataset")
     parser.add_argument("--no-intercept", action="store_true", help="Nonaktifkan intercept")
     args = parser.parse_args()
 

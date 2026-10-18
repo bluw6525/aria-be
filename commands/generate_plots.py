@@ -24,7 +24,7 @@ from app.modules.regression.algorithms.mm_estimator import MMEstimator
 from commands.utils import split_data, predict_model
 from app.modules.regression.metrics import calculate_r2, calculate_rmse, calculate_mae
 
-OUTPUT_DIR = PROJECT_ROOT / "commands" / "plots"
+OUTPUT_DIR = PROJECT_ROOT / "commands" / "plots" / "estimation"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 async def generate_plots(
