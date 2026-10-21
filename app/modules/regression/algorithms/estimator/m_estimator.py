@@ -1,7 +1,7 @@
 import numpy as np
 
-from app.modules.regression.algorithms.base_estimator import BaseRegressionEstimator
-from app.modules.regression.algorithms.ols_estimator import OLSEstimator
+from app.modules.regression.algorithms.estimator.base_estimator import BaseRegressionEstimator
+from app.modules.regression.algorithms.estimator.ols_estimator import OLSEstimator
 from app.modules.regression.algorithms.robust_utils import calculate_mad_scale, weight_tukey
 
 

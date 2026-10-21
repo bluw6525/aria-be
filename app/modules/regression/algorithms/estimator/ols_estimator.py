@@ -4,7 +4,7 @@ Modul Penaksir OLS (Ordinary Least Squares).
 
 import numpy as np
 
-from app.modules.regression.algorithms.base_estimator import BaseRegressionEstimator
+from app.modules.regression.algorithms.estimator.base_estimator import BaseRegressionEstimator
 
 
 class OLSEstimator(BaseRegressionEstimator):
