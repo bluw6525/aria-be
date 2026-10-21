@@ -1,11 +1,12 @@
 import numpy as np
 
+from app.modules.regression.algorithms.base_estimator import BaseRegressionEstimator
 from app.modules.regression.algorithms.ols_estimator import OLSEstimator
 from app.modules.regression.algorithms.robust_utils import calculate_mad_scale, weight_tukey
 
 
 
-class MEstimator:
+class MEstimator(BaseRegressionEstimator):
     """
     Kelas Penaksir Estimasi-M (Tukey Bisquare).
     
@@ -39,8 +40,9 @@ class MEstimator:
         fit_intercept : bool, default=True
             Menentukan apakah model menyertakan konstanta/titik potong (beta_0).
         """
+        super().__init__(fit_intercept=fit_intercept)
+
         # Konfigurasi parameter input
-        self.fit_intercept = fit_intercept
         self.max_iter = int(max_iter)
         self.tol = float(tol)
 
@@ -49,12 +51,6 @@ class MEstimator:
             self.c = float(tuning_constant)
         else:
             self.c = float(c)
-
-        # Wadah atribut hasil estimasi (diakhiri underscore '_' sesuai konvensi)
-        # Nilai awal None karena data belum diproses
-        self.params_ = None              # Array seluruh parameter: [beta_0, beta_1, ...]
-        self.intercept_ = None           # Nilai skalar konstanta beta_0 (0.0 jika fit_intercept=False)
-        self.coef_ = None                # Array koefisien slope variabel independen: [beta_1, ...]
         self.scale_ = None               # Nilai skala residual akhir (sigma MAD)
         self.weights_ = None             # Array bobot akhir tiap observasi w_i
         self.residuals_ = None           # Array residual akhir: y - y_hat

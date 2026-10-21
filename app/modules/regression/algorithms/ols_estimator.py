@@ -4,8 +4,10 @@ Modul Penaksir OLS (Ordinary Least Squares).
 
 import numpy as np
 
+from app.modules.regression.algorithms.base_estimator import BaseRegressionEstimator
 
-class OLSEstimator:
+
+class OLSEstimator(BaseRegressionEstimator):
     """
     Penaksir Ordinary Least Squares (OLS).
     """
@@ -20,14 +22,7 @@ class OLSEstimator:
             Jika True, model mengestimasi konstanta beta_0 dan slope beta_1..p.
             Jika False, garis regresi dipaksa melewati titik asal (0, 0).
         """
-        # Konfigurasi input dari pengguna
-        self.fit_intercept = fit_intercept
-
-        # Wadah atribut hasil estimasi (diakhiri underscore '_' sesuai konvensi)
-        # Nilai awal None karena data belum diproses
-        self.params_ = None     # Array seluruh parameter: [beta_0, beta_1, ...]
-        self.intercept_ = None  # Nilai skalar konstanta beta_0 (0.0 jika fit_intercept=False)
-        self.coef_ = None       # Array koefisien slope variabel independen: [beta_1, ...]
+        super().__init__(fit_intercept=fit_intercept)
 
     def fit(self, X, y):
         X = np.asarray(X, dtype=float)
