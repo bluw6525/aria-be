@@ -81,3 +81,65 @@ def weight_tukey(u, c=4.685):
 
     # 4. Kembalikan array nilai bobot
     return weights
+
+def weight_s_scale(u, c=1.547):
+    """
+    Fungsi pembobot skala Estimasi-S pada iterasi > 1:
+    w(u) = rho(u) / u^2
+
+    Dijabarkan langkah demi langkah per perkalian matematis untuk akurasi numerik.
+
+    Parameters:
+    -----------
+    u : array-like
+        Residual terstandarisasi (u_i = e_i / sigma).
+    c : float, default=1.547
+        Konstanta penala Estimasi-S (1.547 untuk breakdown point 50%).
+
+    Returns:
+    --------
+    np.ndarray
+        Array nilai bobot skala w(u) = rho(u) / u^2.
+    """
+    # 1. Konversi u ke tipe array float
+    u = np.asarray(u, dtype=float)
+
+    # 2. Ambil nilai mutlak dari u (|u|)
+    abs_u = np.abs(u)
+
+    # 3. Beri batas pengaman nilai minimum u (1e-12) agar tidak terjadi pembagian dengan nol
+    u_safe = np.where(abs_u < 1e-12, 1e-12, abs_u)
+
+    # 4. Langkah 1: Hitung (u / c)
+    u_div_c = u_safe / c
+
+    # 5. Langkah 2: Hitung kuadrat (u / c)^2
+    u_div_c_sq = u_div_c ** 2
+
+    # 6. Langkah 3: Hitung 1 - (u / c)^2
+    satu_minus_sq = 1.0 - u_div_c_sq
+
+    # 7. Langkah 4: Hitung pangkat tiga (1 - (u / c)^2)^3
+    pangkat_tiga = satu_minus_sq ** 3
+
+    # 8. Langkah 5: Hitung 1 - (1 - (u / c)^2)^3
+    satu_minus_pangkat_tiga = 1.0 - pangkat_tiga
+
+    # 9. Langkah 6: Hitung konstanta depan c^2 / 6
+    konstanta_depan = (c ** 2) / 6.0
+
+    # 10. Langkah 7: Hitung rho(u) = (c^2 / 6) * [1 - (1 - (u/c)^2)^3] jika |u| <= c, dan c^2/6 jika |u| > c
+    rho_u = np.where(
+        abs_u <= c,
+        konstanta_depan * satu_minus_pangkat_tiga,
+        konstanta_depan
+    )
+
+    # 11. Langkah 8: Hitung nilai u^2
+    u_squared = u_safe ** 2
+
+    # 12. Langkah 9: Hitung pembobot skala w(u) = rho(u) / u^2
+    weights = rho_u / u_squared
+
+    # 13. Kembalikan bobot skala hasil perhitungan
+    return weights
