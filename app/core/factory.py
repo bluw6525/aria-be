@@ -6,7 +6,6 @@ Menyediakan registrasi modul aplikasi secara terpusat untuk Injector container.
 from typing import Iterable, List
 from injector import Injector, Module
 from app.core.container import DatabaseModule
-from app.modules.item.container import ItemContainer
 
 
 def _create_app_modules() -> Iterable[Module]:
@@ -14,9 +13,7 @@ def _create_app_modules() -> Iterable[Module]:
     Fungsi internal untuk mendaftarkan seluruh modul domain/fitur bisnis ke container.
     Jika membuat fitur baru (misal User, Order), tambahkan containernya di sini.
     """
-    return {
-        # Modul konfigurasi binding untuk entitas Item (ItemRepository & ItemUsecase)
-    }
+    return []
 
 
 def create_injector() -> Injector:
