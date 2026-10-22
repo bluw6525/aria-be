@@ -53,7 +53,11 @@ class TestModelUseCase:
 
         sign_co = "+" if coef_co >= 0 else "-"
         sign_no2 = "+" if coef_no2 >= 0 else "-"
-        equation = f"O3 = {intercept:.4f} {sign_co} {abs(coef_co):.4f}(CO) {sign_no2} {abs(coef_no2):.4f}(NO2)"
+        if abs(intercept) > 1e-9:
+            equation = f"O3 = {intercept:.4f} {sign_co} {abs(coef_co):.4f}(CO) {sign_no2} {abs(coef_no2):.4f}(NO2)"
+        else:
+            first_sign = "" if coef_co >= 0 else "-"
+            equation = f"O3 = {first_sign}{abs(coef_co):.4f}(CO) {sign_no2} {abs(coef_no2):.4f}(NO2)"
 
         chart_data = [
             RegressionPoint(

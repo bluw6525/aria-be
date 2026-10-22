@@ -1,5 +1,5 @@
 """
-Schema Pydantic untuk Modul Estimasi O3 dan Klasifikasi ISPU.
+Schema Pydantic untuk Modul Estimasi Nilai ISPU dan Klasifikasi Kategori.
 """
 
 from typing import Optional, List, Dict
@@ -13,12 +13,11 @@ class SingleEstimateRequest(BaseModel):
 
 
 class SingleEstimateResponse(BaseModel):
-    model_id: Optional[int]
+    model_id: Optional[int] = None
     model_name: str
     estimator_type: str
     equation: Optional[str] = None
-    estimated_o3: float
-    ispu_value: float
+    estimated_value: float
     ispu_category: str
 
 
@@ -27,17 +26,16 @@ class BatchEstimatePoint(BaseModel):
     label: str
     co: float
     no2: float
-    actual_o3: Optional[float] = None
-    estimated_o3: float
-    ispu_value: float
+    actual_value: Optional[float] = None
+    estimated_value: float
     ispu_category: str
 
 
 class BatchEstimateSummary(BaseModel):
     total_samples: int
-    avg_estimated_o3: float
-    min_estimated_o3: float
-    max_estimated_o3: float
+    avg_estimated: float
+    min_estimated: float
+    max_estimated: float
     dominant_ispu_category: str
     ispu_distribution: Dict[str, int]
 
