@@ -43,22 +43,22 @@ def calculate_mad_scale(residuals, divisor=0.6745):
     return max(float(scale), 1e-8)
 
 
-def weight_tukey(u, c=4.685):
+def weight_tukey(u, k=4.685):
     """
     Fungsi pembobot Tukey Bisquare untuk regresi terboboti (WLS):
-    w(u) = [1 - (u / c)^2]^2  jika |u| <= c
-    w(u) = 0                  jika |u| > c
+    w(u) = [1 - (u / k)^2]^2  jika |u| <= k
+    w(u) = 0                  jika |u| > k
 
     Digunakan pada:
-    - Estimasi-M: c = 4.685 (efisiensi 95% pada distribusi normal)
-    - Estimasi-S : c = 1.547 (pada iterasi awal WLS)
-    - Estimasi-MM: c = 4.685 (pada tahapan pembaruan koefisien WLS)
+    - Estimasi-M: k = 4.685 (efisiensi 95% pada distribusi normal)
+    - Estimasi-S : k = 1.547 (pada iterasi awal WLS)
+    - Estimasi-MM: k = 4.685 (pada tahapan pembaruan koefisien WLS)
 
     Parameters:
     -----------
     u : array-like
         Residual terstandarisasi (u_i = e_i / sigma).
-    c : float, default=4.685
+    k : float, default=4.685
         Konstanta penala (tuning constant).
 
     Returns:
@@ -69,20 +69,20 @@ def weight_tukey(u, c=4.685):
     # 1. Pastikan u dalam bentuk array numerik bertipe float
     u = np.asarray(u, dtype=float)
 
-    # 2. Hitung rasio residual terstandarisasi terhadap konstanta tuning (u / c)
-    u_c = u / c
+    # 2. Hitung rasio residual terstandarisasi terhadap konstanta tuning (u / k)
+    u_k = u / k
 
-    # 3. Berikan bobot: jika |u| <= c gunakan [1 - (u/c)^2]^2, jika |u| > c beri bobot 0
+    # 3. Berikan bobot: jika |u| <= k gunakan [1 - (u/k)^2]^2, jika |u| > k beri bobot 0
     weights = np.where(
-        np.abs(u) <= c,
-        (1.0 - u_c**2)**2,
+        np.abs(u) <= k,
+        (1.0 - u_k**2)**2,
         0.0
     )
 
     # 4. Kembalikan array nilai bobot
     return weights
 
-def weight_s_scale(u, c=1.547):
+def weight_s_scale(u, k=1.547):
     """
     Fungsi pembobot skala Estimasi-S pada iterasi > 1:
     w(u) = rho(u) / u^2
@@ -93,7 +93,7 @@ def weight_s_scale(u, c=1.547):
     -----------
     u : array-like
         Residual terstandarisasi (u_i = e_i / sigma).
-    c : float, default=1.547
+    k : float, default=1.547
         Konstanta penala Estimasi-S (1.547 untuk breakdown point 50%).
 
     Returns:
@@ -110,27 +110,27 @@ def weight_s_scale(u, c=1.547):
     # 3. Beri batas pengaman nilai minimum u (1e-12) agar tidak terjadi pembagian dengan nol
     u_safe = np.where(abs_u < 1e-12, 1e-12, abs_u)
 
-    # 4. Langkah 1: Hitung (u / c)
-    u_div_c = u_safe / c
+    # 4. Langkah 1: Hitung (u / k)
+    u_div_k = u_safe / k
 
-    # 5. Langkah 2: Hitung kuadrat (u / c)^2
-    u_div_c_sq = u_div_c ** 2
+    # 5. Langkah 2: Hitung kuadrat (u / k)^2
+    u_div_k_sq = u_div_k ** 2
 
-    # 6. Langkah 3: Hitung 1 - (u / c)^2
-    satu_minus_sq = 1.0 - u_div_c_sq
+    # 6. Langkah 3: Hitung 1 - (u / k)^2
+    satu_minus_sq = 1.0 - u_div_k_sq
 
-    # 7. Langkah 4: Hitung pangkat tiga (1 - (u / c)^2)^3
+    # 7. Langkah 4: Hitung pangkat tiga (1 - (u / k)^2)^3
     pangkat_tiga = satu_minus_sq ** 3
 
-    # 8. Langkah 5: Hitung 1 - (1 - (u / c)^2)^3
+    # 8. Langkah 5: Hitung 1 - (1 - (u / k)^2)^3
     satu_minus_pangkat_tiga = 1.0 - pangkat_tiga
 
-    # 9. Langkah 6: Hitung konstanta depan c^2 / 6
-    konstanta_depan = (c ** 2) / 6.0
+    # 9. Langkah 6: Hitung konstanta depan k^2 / 6
+    konstanta_depan = (k ** 2) / 6.0
 
-    # 10. Langkah 7: Hitung rho(u) = (c^2 / 6) * [1 - (1 - (u/c)^2)^3] jika |u| <= c, dan c^2/6 jika |u| > c
+    # 10. Langkah 7: Hitung rho(u) = (k^2 / 6) * [1 - (1 - (u/k)^2)^3] jika |u| <= k, dan k^2/6 jika |u| > k
     rho_u = np.where(
-        abs_u <= c,
+        abs_u <= k,
         konstanta_depan * satu_minus_pangkat_tiga,
         konstanta_depan
     )

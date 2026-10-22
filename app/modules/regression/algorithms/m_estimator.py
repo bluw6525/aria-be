@@ -16,23 +16,23 @@ class MEstimator(BaseRegressionEstimator):
     3. Hitung nilai skala sigma = median(|e_i - median(e)|) / 0.6745 (skala MAD).
     4. Hitung residual terstandarisasi u_i = e_i / sigma.
     5. Hitung pembobot Tukey Bisquare:
-       w_i = [1 - (u_i / c)^2]^2 jika |u_i| <= c, dan 0 jika |u_i| > c (c = 4.685).
+       w_i = [1 - (u_i / k)^2]^2 jika |u_i| <= k, dan 0 jika |u_i| > k (k = 4.685).
     6. Hitung pembaruan koefisien beta_M menggunakan WLS:
        beta = (X' W X)^(-1) X' W y.
     7. Ulangi langkah 2-6 hingga parameter beta_M konvergen.
     8. Mengembalikan parameter regresi hasil estimasi.
     """
 
-    def __init__(self, c=4.685, tuning_constant=None, max_iter=100, tol=1e-5, fit_intercept=True, **kwargs):
+    def __init__(self, k=4.685, tuning_constant=None, max_iter=100, tol=1e-5, fit_intercept=True, **kwargs):
         """
         Inisialisasi konfigurasi dan atribut penaksir Estimasi-M.
 
         Parameters:
         -----------
-        c : float, default=4.685
+        k : float, default=4.685
             Konstanta tuning pembobot Tukey Bisquare (4.685 menghasilkan efisiensi 95% pada distribusi normal).
         tuning_constant : float, optional
-            Alias untuk parameter c jika pengguna mengoper nama parameter alternatif.
+            Alias untuk parameter k jika pengguna mengoper nama parameter alternatif.
         max_iter : int, default=100
             Batas maksimum jumlah iterasi pembobotan ulang (IRLS).
         tol : float, default=1e-5
@@ -46,11 +46,11 @@ class MEstimator(BaseRegressionEstimator):
         self.max_iter = int(max_iter)
         self.tol = float(tol)
 
-        # Penentuan nilai konstanta tuning c
+        # Penentuan nilai konstanta tuning k
         if tuning_constant is not None:
-            self.c = float(tuning_constant)
+            self.k = float(tuning_constant)
         else:
-            self.c = float(c)
+            self.k = float(k)
         self.scale_ = None               # Nilai skala residual akhir (sigma MAD)
         self.weights_ = None             # Array bobot akhir tiap observasi w_i
         self.residuals_ = None           # Array residual akhir: y - y_hat
@@ -106,7 +106,7 @@ class MEstimator(BaseRegressionEstimator):
             u = residuals / scale
 
             # Hitung nilai pembobot Tukey Bisquare w_i
-            weights = weight_tukey(u, c=self.c)
+            weights = weight_tukey(u, k=self.k)
 
             # Catat riwayat proses iterasi
             self.iteration_history_.append({
@@ -164,13 +164,13 @@ class MEstimator(BaseRegressionEstimator):
         self.fittedvalues_ = X_design @ params
         self.scale_ = scale
         u_final = residuals / scale
-        self.weights_ = weight_tukey(u_final, c=self.c)
+        self.weights_ = weight_tukey(u_final, k=self.k)
 
         # Mengembalikan parameter hasil estimasi
         return self.params_
 
 
-def m_estimator(X, y, c=4.685, tuning_constant=None, max_iter=100, tol=1e-5, fit_intercept=True, **kwargs):
+def m_estimator(X, y, k=4.685, tuning_constant=None, max_iter=100, tol=1e-5, fit_intercept=True, **kwargs):
     """
     Fungsi pembantu (helper) untuk langsung menaksir parameter regresi Estimasi-M (Tukey Bisquare).
 
@@ -183,10 +183,10 @@ def m_estimator(X, y, c=4.685, tuning_constant=None, max_iter=100, tol=1e-5, fit
         Variabel independen.
     y : array-like (n,)
         Variabel dependen.
-    c : float, default=4.685
+    k : float, default=4.685
         Konstanta tuning Tukey Bisquare.
     tuning_constant : float, optional
-        Alias untuk parameter c.
+        Alias untuk parameter k.
     max_iter : int, default=100
         Batas iterasi maksimum.
     tol : float, default=1e-5
@@ -200,7 +200,7 @@ def m_estimator(X, y, c=4.685, tuning_constant=None, max_iter=100, tol=1e-5, fit
         Array koefisien parameter regresi hasil estimasi Estimasi-M.
     """
     estimator = MEstimator(
-        c=c,
+        k=k,
         tuning_constant=tuning_constant,
         max_iter=max_iter,
         tol=tol,

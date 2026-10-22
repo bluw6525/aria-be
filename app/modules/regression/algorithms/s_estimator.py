@@ -1,7 +1,8 @@
 import numpy as np
 
-from app.modules.regression.algorithms.estimator.base_estimator import BaseRegressionEstimator
-from app.modules.regression.algorithms.estimator.ols_estimator import OLSEstimator
+
+from app.modules.regression.algorithms.base_estimator import BaseRegressionEstimator
+from app.modules.regression.algorithms.ols_estimator import OLSEstimator
 from app.modules.regression.core.robust_utils import calculate_mad_scale, weight_s_scale, weight_tukey
 
 class SEstimator(BaseRegressionEstimator):
@@ -17,15 +18,15 @@ class SEstimator(BaseRegressionEstimator):
     4. Hitung u_i = e_i / sigma_i.
     5. Hitung nilai pembobot w_i:
        - Iterasi 1 : w_i = [1 - (u_i / 1.547)^2]^2 jika |u_i| <= 1.547, 0 jika > 1.547
-       - Iterasi > 1: w_i = rho(u_i) / u_i^2 (fungsi Tukey Bisquare, c = 1.547)
+       - Iterasi > 1: w_i = rho(u_i) / u_i^2 (fungsi Tukey Bisquare, k = 1.547)
     6. Hitung beta_S dengan metode WLS (Weighted Least Squares) dengan pembobot w_i:
        beta = (X' W X)^(-1) X' W Y
     7. Ulangi langkah 2-6 hingga diperoleh nilai beta_S yang konvergen.
     8. Mengembalikan hanya parameter regresi saja.
     """
-    def __init__(self, c=1.547, K=0.199, max_iter=100, tol=1e-5, fit_intercept=True, **kwargs):
+    def __init__(self, k=1.547, K=0.199, max_iter=100, tol=1e-5, fit_intercept=True, **kwargs):
         super().__init__(fit_intercept=fit_intercept)
-        self.c = float(c)
+        self.k = float(k)
         self.K = float(K)
         self.max_iter = int(max_iter)
         self.tol = float(tol)
@@ -87,9 +88,9 @@ class SEstimator(BaseRegressionEstimator):
 
             # Nilai pembobot w_i
             if it == 1:
-                weights = weight_tukey(u, c=self.c)
+                weights = weight_tukey(u, k=self.k)
             else:
-                weights = weight_s_scale(u, c=self.c)
+                weights = weight_s_scale(u, k=self.k)
 
             self.iteration_history_.append({
                 'iteration': it,
@@ -139,18 +140,18 @@ class SEstimator(BaseRegressionEstimator):
         self.fittedvalues_ = X_design @ params
 
         u_final = residuals / self.scale_
-        self.weights_ = weight_s_scale(u_final, c=self.c)
+        self.weights_ = weight_s_scale(u_final, k=self.k)
 
         # Hanya mengembalikan parameter regresi saja
         return self.params_
 
 
-def s_estimator(X, y, c=1.547, K=0.199, max_iter=100, tol=1e-5, fit_intercept=True, **kwargs):
+def s_estimator(X, y, k=1.547, K=0.199, max_iter=100, tol=1e-5, fit_intercept=True, **kwargs):
     """
     Fungsi penaksir Estimasi-S yang hanya mengembalikan parameter regresi.
     """
     estimator = SEstimator(
-        c=c,
+        k=k,
         K=K,
         max_iter=max_iter,
         tol=tol,
