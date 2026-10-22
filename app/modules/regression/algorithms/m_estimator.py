@@ -23,7 +23,7 @@ class MEstimator(BaseRegressionEstimator):
     8. Mengembalikan parameter regresi hasil estimasi.
     """
 
-    def __init__(self, k=4.685, tuning_constant=None, max_iter=100, tol=1e-5, fit_intercept=True, **kwargs):
+    def __init__(self, k=4.685, max_iter=100, tol=1e-5, fit_intercept=True, **kwargs):
         """
         Inisialisasi konfigurasi dan atribut penaksir Estimasi-M.
 
@@ -31,8 +31,6 @@ class MEstimator(BaseRegressionEstimator):
         -----------
         k : float, default=4.685
             Konstanta tuning pembobot Tukey Bisquare (4.685 menghasilkan efisiensi 95% pada distribusi normal).
-        tuning_constant : float, optional
-            Alias untuk parameter k jika pengguna mengoper nama parameter alternatif.
         max_iter : int, default=100
             Batas maksimum jumlah iterasi pembobotan ulang (IRLS).
         tol : float, default=1e-5
@@ -45,12 +43,7 @@ class MEstimator(BaseRegressionEstimator):
         # Konfigurasi parameter input
         self.max_iter = int(max_iter)
         self.tol = float(tol)
-
-        # Penentuan nilai konstanta tuning k
-        if tuning_constant is not None:
-            self.k = float(tuning_constant)
-        else:
-            self.k = float(k)
+        self.k = float(k)
         self.scale_ = None               # Nilai skala residual akhir (sigma MAD)
         self.weights_ = None             # Array bobot akhir tiap observasi w_i
         self.residuals_ = None           # Array residual akhir: y - y_hat
@@ -170,7 +163,7 @@ class MEstimator(BaseRegressionEstimator):
         return self.params_
 
 
-def m_estimator(X, y, k=4.685, tuning_constant=None, max_iter=100, tol=1e-5, fit_intercept=True, **kwargs):
+def m_estimator(X, y, k=4.685, max_iter=100, tol=1e-5, fit_intercept=True, **kwargs):
     """
     Fungsi pembantu (helper) untuk langsung menaksir parameter regresi Estimasi-M (Tukey Bisquare).
 
@@ -185,8 +178,6 @@ def m_estimator(X, y, k=4.685, tuning_constant=None, max_iter=100, tol=1e-5, fit
         Variabel dependen.
     k : float, default=4.685
         Konstanta tuning Tukey Bisquare.
-    tuning_constant : float, optional
-        Alias untuk parameter k.
     max_iter : int, default=100
         Batas iterasi maksimum.
     tol : float, default=1e-5
@@ -201,7 +192,6 @@ def m_estimator(X, y, k=4.685, tuning_constant=None, max_iter=100, tol=1e-5, fit
     """
     estimator = MEstimator(
         k=k,
-        tuning_constant=tuning_constant,
         max_iter=max_iter,
         tol=tol,
         fit_intercept=fit_intercept,
