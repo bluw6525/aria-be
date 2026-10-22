@@ -15,7 +15,7 @@ class RegressionPoint(BaseModel):
 class TrainModelResult(BaseModel):
     estimator_type: str
     equation: str
-    intercept: float
+    intercept: float = 0.0
     coef_co: float
     coef_no2: float
     scale: Optional[float] = None
@@ -27,7 +27,7 @@ class TrainModelResult(BaseModel):
 
 
 class TestModelResult(BaseModel):
-    model_id: int
+    model_id: Optional[int] = None
     model_name: str
     estimator_type: str
     equation: str

@@ -129,7 +129,32 @@ async def test_model_endpoint(
 ):
     """Menguji model tersimpan di database dengan berkas data uji baru."""
     try:
-        return await usecase.execute(model_id=model_id, file=file)
+        return await usecase.test_model(model_id=model_id, file=file)
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
+
+
+@router.post("/test-custom", response_model=TestModelResult)
+async def test_custom_model_endpoint(
+    intercept: float = Form(0.0, description="Nilai intercept (w0)"),
+    coef_co: float = Form(..., description="Koefisien CO (w1)"),
+    coef_no2: float = Form(..., description="Koefisien NO2 (w2)"),
+    estimator_type: str = Form("MM", description="Tipe estimator"),
+    model_name: str = Form("Model Baru Dilatih", description="Label nama model"),
+    file: UploadFile = File(..., description="Berkas data uji (.xlsx, .xls, .csv)"),
+    usecase: TestModelUseCase = Injected(TestModelUseCase)
+):
+    """Menguji parameter model langsung (misal model yang baru dilatih tanpa disimpan ke database)."""
+    try:
+        return await usecase.test_custom_model(
+            intercept=intercept,
+            coef_co=coef_co,
+            coef_no2=coef_no2,
+            file=file,
+            estimator_type=estimator_type,
+            model_name=model_name,
+            model_id=None,
+        )
     except ValueError as err:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
 

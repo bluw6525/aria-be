@@ -11,7 +11,7 @@ class TrainedModelBase(BaseModel):
     name: str = Field(..., description="Nama unik untuk model")
     estimator_type: str = Field(..., description="Tipe estimator: MM, M, S, atau OLS")
     is_default: bool = Field(False, description="Apakah model ini model bawaan sistem")
-    intercept: float = Field(..., description="Nilai konstanta beta_0")
+    intercept: float = Field(0.0, description="Nilai konstanta beta_0")
     coef_co: float = Field(..., description="Koefisien CO Sentinel-5P (beta_1)")
     coef_no2: float = Field(..., description="Koefisien NO2 Sentinel-5P (beta_2)")
     scale: Optional[float] = Field(None, description="Estimasi skala residual sigma")
