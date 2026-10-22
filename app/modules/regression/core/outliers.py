@@ -244,14 +244,14 @@ class OutlierDetector:
         if self.is_outlier_ is None:
             raise ValueError("Jalankan .fit(X, y) terlebih dahulu sebelum memanggil .to_dict().")
 
-        outlier_indices = np.where(self.is_outlier_)[0]
+        outlier_indices = (np.where(self.is_outlier_)[0] + 1).tolist()
 
         result: Dict[str, Any] = {
             "method": self.active_method_,
             "n_samples": self.n_samples_,
             "n_features": self.n_features_,
             "total_outliers": int(len(outlier_indices)),
-            "outlier_indices": outlier_indices.tolist(),
+            "outlier_indices": outlier_indices,
         }
 
         # Hanya sertakan detail observasi jika diminta secara eksplisit
@@ -263,21 +263,21 @@ class OutlierDetector:
             # 1. Main Union (Seluruh Pencilan Unik)
             result["all"] = {
                 "outliers_count": int(np.sum(self.is_outlier_)),
-                "outlier_indices": outlier_indices.tolist()
+                "outlier_indices": outlier_indices,
             }
             # 2. Irisan Keduanya
             result["both"] = {
                 "outliers_count": int(np.sum(self.is_both_outlier_)),
-                "outlier_indices": np.where(self.is_both_outlier_)[0].tolist()
+                "outlier_indices": (np.where(self.is_both_outlier_)[0] + 1).tolist(),
             }
             # 3. Parsial (Hanya salah satu)
             result["leverage_only"] = {
                 "outliers_count": int(np.sum(self.is_leverage_only_)),
-                "outlier_indices": np.where(self.is_leverage_only_)[0].tolist()
+                "outlier_indices": (np.where(self.is_leverage_only_)[0] + 1).tolist(),
             }
             result["dffits_only"] = {
                 "outliers_count": int(np.sum(self.is_dffits_only_)),
-                "outlier_indices": np.where(self.is_dffits_only_)[0].tolist()
+                "outlier_indices": (np.where(self.is_dffits_only_)[0] + 1).tolist(),
             }
 
         # Metrik Leverage jika dihitung
@@ -285,7 +285,7 @@ class OutlierDetector:
             result["leverage"] = {
                 "threshold": float(self.leverage_threshold_),
                 "outliers_count": int(np.sum(self.is_leverage_outlier_)),
-                "outlier_indices": np.where(self.is_leverage_outlier_)[0].tolist()
+                "outlier_indices": (np.where(self.is_leverage_outlier_)[0] + 1).tolist(),
             }
 
         # Metrik DFFITS jika dihitung
@@ -293,7 +293,7 @@ class OutlierDetector:
             result["dffits"] = {
                 "threshold": float(self.dffits_threshold_),
                 "outliers_count": int(np.sum(self.is_dffits_outlier_)),
-                "outlier_indices": np.where(self.is_dffits_outlier_)[0].tolist()
+                "outlier_indices": (np.where(self.is_dffits_outlier_)[0] + 1).tolist(),
             }
 
         return result
