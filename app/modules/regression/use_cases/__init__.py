@@ -3,6 +3,7 @@ from app.modules.regression.use_cases.train_model_use_case import TrainModelUseC
 from app.modules.regression.use_cases.test_model_use_case import TestModelUseCase
 from app.modules.regression.use_cases.model_use_case import ModelUseCase
 from app.modules.regression.use_cases.estimate_use_case import EstimateUseCase
+from app.modules.regression.use_cases.batch_estimate_use_case import BatchEstimateUseCase
 
 __all__ = [
     "DetectOutliersUseCase",
@@ -10,4 +11,6 @@ __all__ = [
     "TestModelUseCase",
     "ModelUseCase",
     "EstimateUseCase",
+    "BatchEstimateUseCase",
 ]
+

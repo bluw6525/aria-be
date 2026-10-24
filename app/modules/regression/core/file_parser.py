@@ -6,7 +6,8 @@ kolom target O3 (Ozon), serta kolom label waktu (tanggal/date) secara otomatis d
 
 import io
 import re
-from typing import List, Tuple, Optional
+from pathlib import Path
+from typing import List, Tuple, Optional, Union
 import numpy as np
 import pandas as pd
 from fastapi import UploadFile
@@ -67,33 +68,49 @@ def match_column(columns: List[str], patterns: List[str]) -> Optional[str]:
     return None
 
 
-async def read_uploaded_dataframe(file: UploadFile) -> pd.DataFrame:
+async def read_uploaded_dataframe(file: Union[UploadFile, str, Path]) -> pd.DataFrame:
     """
-    Membaca berkas unggahan (.xlsx, .xls, .csv) dan mengembalikan pandas DataFrame yang bersih.
+    Membaca berkas (.xlsx, .xls, .csv) baik dari UploadFile maupun path lokal (str/Path)
+    dan mengembalikan pandas DataFrame yang bersih.
     """
-    filename = file.filename or ""
-    ext = filename.lower().split(".")[-1]
+    if isinstance(file, (str, Path)):
+        path_obj = Path(file).resolve()
+        if not path_obj.exists():
+            raise FileNotFoundError(f"Berkas dataset tidak ditemukan: {path_obj}")
+        ext = path_obj.suffix.lower().lstrip(".")
+        try:
+            if ext in ["xlsx", "xls"]:
+                df = pd.read_excel(path_obj)
+            elif ext == "csv":
+                df = pd.read_csv(path_obj)
+            else:
+                raise ValueError(f"Format berkas '.{ext}' tidak didukung. Harap gunakan .csv, .xls, atau .xlsx.")
+        except Exception as e:
+            raise ValueError(f"Gagal membaca berkas: {str(e)}")
+    else:
+        filename = getattr(file, "filename", "") or ""
+        ext = filename.lower().split(".")[-1]
 
-    contents = await file.read()
-    if not contents:
-        raise ValueError("Berkas yang diunggah kosong.")
+        contents = await file.read()
+        if not contents:
+            raise ValueError("Berkas yang diunggah kosong.")
 
-    try:
-        if ext in ["xlsx", "xls"]:
-            df = pd.read_excel(io.BytesIO(contents))
-        elif ext == "csv":
-            df = pd.read_csv(io.BytesIO(contents))
-        else:
-            raise ValueError(f"Format berkas '.{ext}' tidak didukung. Harap unggah .csv, .xls, atau .xlsx.")
-    except Exception as e:
-        raise ValueError(f"Gagal membaca berkas: {str(e)}")
+        try:
+            if ext in ["xlsx", "xls"]:
+                df = pd.read_excel(io.BytesIO(contents))
+            elif ext == "csv":
+                df = pd.read_csv(io.BytesIO(contents))
+            else:
+                raise ValueError(f"Format berkas '.{ext}' tidak didukung. Harap unggah .csv, .xls, atau .xlsx.")
+        except Exception as e:
+            raise ValueError(f"Gagal membaca berkas: {str(e)}")
 
     df.columns = [str(col).strip() for col in df.columns]
     return df
 
 
 async def parse_and_validate_file(
-    file: UploadFile,
+    file: Union[UploadFile, str, Path],
     require_target: bool = True
 ) -> Tuple[np.ndarray, Optional[np.ndarray], List[str], str]:
     """

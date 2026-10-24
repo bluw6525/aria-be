@@ -19,6 +19,11 @@ from app.modules.regression.schemas.estimate_schema import (
     BatchEstimateSummary,
     BatchEstimateResponse,
 )
+from app.modules.regression.schemas.benchmark_schema import (
+    MCCVIterationResult,
+    BenchmarkSummaryRow,
+    MCCVBenchmarkResult,
+)
 
 __all__ = [
     # Model Schemas
@@ -38,4 +43,9 @@ __all__ = [
     "BatchEstimatePoint",
     "BatchEstimateSummary",
     "BatchEstimateResponse",
+    # Benchmark Schemas
+    "MCCVIterationResult",
+    "BenchmarkSummaryRow",
+    "MCCVBenchmarkResult",
 ]
+
