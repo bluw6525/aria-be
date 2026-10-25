@@ -15,7 +15,11 @@ from app.modules.regression.core.metrics import (
     calculate_mae,
     calculate_r2,
 )
-from app.modules.regression.core.models import RegressionModel, TrainedModel
+from app.modules.regression.core.models import (
+    BenchmarkSession,
+    MCCVIterationModel,
+    TrainedModel,
+)
 from app.modules.regression.core.split import split_data
 
 __all__ = [
@@ -23,7 +27,8 @@ __all__ = [
     "calculate_rmse",
     "calculate_mae",
     "calculate_r2",
-    "RegressionModel",
+    "BenchmarkSession",
+    "MCCVIterationModel",
     "TrainedModel",
     "split_data",
     "run_monte_carlo_cv",
@@ -34,7 +39,3 @@ __all__ = [
     "parse_and_validate_file",
     "parse_batch_estimate_file",
 ]
-
-
-
-

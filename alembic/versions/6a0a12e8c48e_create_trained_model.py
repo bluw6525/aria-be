@@ -1,8 +1,8 @@
-"""create train models
+"""create trained_model
 
-Revision ID: 55bcde0dd7e2
+Revision ID: 6a0a12e8c48e
 Revises: 
-Create Date: 2026-10-21 23:46:47.406826
+Create Date: 2026-10-25 11:41:03.093489
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '55bcde0dd7e2'
+revision: str = '6a0a12e8c48e'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -27,8 +27,7 @@ def upgrade() -> None:
     sa.Column('estimator_type', sa.String(length=50), nullable=False),
     sa.Column('is_default', sa.Boolean(), nullable=True),
     sa.Column('intercept', sa.Float(), nullable=False),
-    sa.Column('coef_co', sa.Float(), nullable=False),
-    sa.Column('coef_no2', sa.Float(), nullable=False),
+    sa.Column('coefficients', sa.JSON(), nullable=False),
     sa.Column('scale', sa.Float(), nullable=True),
     sa.Column('train_rmse', sa.Float(), nullable=False),
     sa.Column('train_mae', sa.Float(), nullable=False),

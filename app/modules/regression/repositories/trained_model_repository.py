@@ -50,12 +50,23 @@ class TrainedModelRepository:
 
     async def create(self, model_data: dict) -> TrainedModel:
         """Menyimpan model regresi baru ke basis data."""
-        if model_data.get("is_default", False):
+        data = dict(model_data)
+        if data.get("is_default", False):
             await self.db.execute(
                 update(TrainedModel).values(is_default=False)
             )
 
-        db_model = TrainedModel(**model_data)
+        # Pastikan coefficients JSON terisi dan key non-kolom dibersihkan
+        if "coefficients" not in data or not data["coefficients"]:
+            data["coefficients"] = {
+                "CO": data.pop("coef_co", 0.0),
+                "NO2": data.pop("coef_no2", 0.0),
+            }
+        else:
+            data.pop("coef_co", None)
+            data.pop("coef_no2", None)
+
+        db_model = TrainedModel(**data)
         self.db.add(db_model)
         await self.db.commit()
         await self.db.refresh(db_model)

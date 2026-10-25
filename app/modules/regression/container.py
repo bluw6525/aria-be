@@ -6,7 +6,7 @@ Mengatur binding dependensi untuk repository dan masing-masing Use Case modular.
 from injector import Module, Binder
 from app.modules.regression.repositories import (
     TrainedModelRepository,
-    RegressionModelRepository,
+    BenchmarkSessionRepository,
 )
 from app.modules.regression.use_cases import (
     DetectOutliersUseCase,
@@ -27,7 +27,7 @@ class RegressionContainer(Module):
     def configure(self, binder: Binder) -> None:
         # Data Access Repository
         binder.bind(TrainedModelRepository)
-        binder.bind(RegressionModelRepository)
+        binder.bind(BenchmarkSessionRepository)
 
         # Modular Business Logic Use Cases
         binder.bind(DetectOutliersUseCase)

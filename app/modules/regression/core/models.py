@@ -1,26 +1,68 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, Float, Integer, JSON, String
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, String
+from sqlalchemy.orm import relationship
 
 from app.core.database import Base
 
 
-class RegressionModel(Base):
+class BenchmarkSession(Base):
     """
-    Tabel riwayat hasil estimasi regresi (OLS, M, S, MM-Estimator).
+    Tabel induk (parent) untuk sesi pengujian Monte Carlo Cross-Validation (MCCV).
+    Menyimpan metadata ringkasan run benchmark per dataset dan rasio split.
     """
-    __tablename__ = "regression_models"
+    __tablename__ = "benchmark_sessions"
 
     # 1. Primary Key & Metadata
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    dataset_name = Column(String(100), nullable=True, index=True)
+    session_name = Column(String(150), nullable=True, index=True)
+    dataset_name = Column(String(100), nullable=False, index=True)
 
-    # 2. Konfigurasi Estimator & Split
-    estimator_type = Column(String(50), nullable=False, index=True)
-    fit_intercept = Column(Boolean, default=True)
-    random_state = Column(Integer, nullable=True)
-    test_size = Column(Float, default=0.3)
+    # 2. Konfigurasi Evaluasi
+    test_size = Column(Float, default=0.2, nullable=False)
+    total_seeds = Column(Integer, default=200, nullable=False)
     total_samples = Column(Integer, nullable=True)
+    fit_intercept = Column(Boolean, default=True, nullable=False)
+
+    # 3. Rangkuman Metrik Agregat (JSON: rata-rata R2, RMSE, MAE per estimator)
+    summary_metrics = Column(JSON, nullable=True)
+
+    # 4. Timestamp
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    # Relasi 1 : N ke iterasi per seed & estimator
+    iterations = relationship(
+        "MCCVIterationModel",
+        back_populates="session",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<BenchmarkSession(id={self.id}, session_name='{self.session_name}', "
+            f"dataset='{self.dataset_name}', seeds={self.total_seeds})>"
+        )
+
+
+class MCCVIterationModel(Base):
+    """
+    Tabel rincian (child) hasil tiap iterasi seed dan algoritma regresi dalam suatu sesi MCCV.
+    """
+    __tablename__ = "mccv_iterations"
+
+    # 1. Primary Key & Foreign Key
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    session_id = Column(
+        Integer,
+        ForeignKey("benchmark_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # 2. Konfigurasi Estimator & Iterasi
+    estimator_type = Column(String(50), nullable=False, index=True)
+    random_state = Column(Integer, nullable=True)
 
     # 3. Parameter Hasil Estimasi
     intercept = Column(Float, nullable=True)
@@ -42,16 +84,18 @@ class RegressionModel(Base):
     # 6. Timestamp
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
+    session = relationship("BenchmarkSession", back_populates="iterations")
+
     def __repr__(self) -> str:
         return (
-            f"<RegressionModel(id={self.id}, estimator='{self.estimator_type}', "
-            f"test_r2={self.test_r2:.4f}, test_rmse={self.test_rmse:.4f})>"
+            f"<MCCVIterationModel(id={self.id}, session_id={self.session_id}, "
+            f"estimator='{self.estimator_type}', test_r2={self.test_r2:.4f}, test_rmse={self.test_rmse:.4f})>"
         )
 
 
 class TrainedModel(Base):
     """
-    Tabel untuk menyimpan model regresi hasil pelatihan mandiri
+    Tabel untuk menyimpan model regresi hasil pelatihan / model terpilih
     serta model bawaan (default) aplikasi Aria.
     """
     __tablename__ = "trained_models"
@@ -61,10 +105,9 @@ class TrainedModel(Base):
     estimator_type = Column(String(50), nullable=False)
     is_default = Column(Boolean, default=False)
 
-    # Parameter Regresi: O3 = beta0 + beta1(CO) + beta2(NO2)
+    # Parameter Regresi
     intercept = Column(Float, nullable=False)
-    coef_co = Column(Float, nullable=False)
-    coef_no2 = Column(Float, nullable=False)
+    coefficients = Column(JSON, nullable=False)  # {"CO": float, "NO2": float, ...}
     scale = Column(Float, nullable=True)
 
     # Metrik Evaluasi Data Latih
@@ -74,7 +117,17 @@ class TrainedModel(Base):
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
+    @property
+    def coef_co(self) -> float:
+        if isinstance(self.coefficients, dict):
+            return float(self.coefficients.get("CO", 0.0))
+        return 0.0
+
+    @property
+    def coef_no2(self) -> float:
+        if isinstance(self.coefficients, dict):
+            return float(self.coefficients.get("NO2", 0.0))
+        return 0.0
+
     def __repr__(self) -> str:
         return f"<TrainedModel(id={self.id}, name='{self.name}', estimator='{self.estimator_type}')>"
-
-

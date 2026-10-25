@@ -1,6 +1,7 @@
 """
 CLI Command untuk menjalankan Benchmark Monte Carlo Cross-Validation (OLS, M, S, MM k=4.685, MM k=1.547).
-Memanggil BatchEstimateUseCase secara terstruktur, mengekspor laporan ke CSV, dan menyimpan hasil evaluasi ke PostgreSQL.
+Memanggil BatchEstimateUseCase secara terstruktur, menyimpan sesi ke benchmark_sessions & mccv_iterations,
+serta mengekspor laporan ke CSV.
 """
 
 import argparse
@@ -15,7 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from app.core.database import AsyncSessionLocal
-from app.modules.regression.repositories import RegressionModelRepository
+from app.modules.regression.repositories import BenchmarkSessionRepository
 from app.modules.regression.use_cases import BatchEstimateUseCase
 from commands.seeds import (
     RANDOM_SEED_4,
@@ -34,15 +35,15 @@ async def main():
         "--file",
         "-f",
         type=str,
-        default="Timur_New.xlsx",
-        help="Path ke berkas dataset Excel atau CSV (default: Selatan_New2.xlsx)",
+        default="Selatan_New.xlsx",
+        help="Path ke berkas dataset Excel atau CSV",
     )
     parser.add_argument(
         "--test-size",
         "-t",
         type=float,
         default=0.2,
-        help="Proporsi data uji (default: 0.3)",
+        help="Proporsi data uji (default: 0.2)",
     )
     parser.add_argument(
         "--n-seeds",
@@ -50,6 +51,13 @@ async def main():
         type=int,
         default=200,
         help="Jumlah seed acak yang di-generate jika seeds tidak ditentukan (default: 200)",
+    )
+    parser.add_argument(
+        "--session-name",
+        "-s",
+        type=str,
+        default=None,
+        help="Nama sesi benchmark yang disimpan di database (default: otomatis)",
     )
     parser.add_argument(
         "--no-intercept",
@@ -71,23 +79,28 @@ async def main():
 
     # Buka sesi database asinkron dan jalankan use case
     async with AsyncSessionLocal() as session:
-        repository = RegressionModelRepository(db=session)
+        repository = BenchmarkSessionRepository(db=session)
         use_case = BatchEstimateUseCase(repository=repository)
 
-        result = await use_case.execute(
+        result = await use_case.batch_estimate(
             file_path=args.file,
             seeds=None,
             n_splits=args.n_seeds,
+            session_name=args.session_name,
             test_size=args.test_size,
             fit_intercept=not args.no_intercept,
             save_to_db=not args.no_save_db,
             verbose=True,
         )
 
+        if result.get("session_id"):
+            print(f"\n[INFO] Sesi Benchmark ID : {result['session_id']}")
+            print(f"[INFO] Nama Sesi         : {result['session_name']}")
+
         if result.get("seeds"):
             seeds_list = result["seeds"]
             preview = f"{seeds_list[:10]}... ({len(seeds_list)} total)" if len(seeds_list) > 10 else f"{seeds_list}"
-            print(f"\nSeed yang digunakan: {preview}")
+            print(f"[INFO] Seed yang dipakai : {preview}")
 
         if not args.no_csv and result.get("summary"):
             file_stem = Path(args.file).stem

@@ -1,6 +1,6 @@
 """
 Use Case untuk Benchmarking Regresi Batch Monte Carlo (OLS, S, M, MM).
-Mengorkestrasi pembacaan data, eksekusi cross-validation core, persistensi PostgreSQL, dan ekspor ringkasan CSV.
+Mengorkestrasi pembacaan data, eksekusi cross-validation core, persistensi sesi benchmark ke PostgreSQL, dan ekspor ringkasan CSV.
 """
 
 import random
@@ -18,30 +18,29 @@ from app.modules.regression.core.file_parser import (
     parse_and_validate_file,
     read_uploaded_dataframe
 )
-from app.modules.regression.core.models import RegressionModel
-from app.modules.regression.repositories.regression_model_repository import (
-    RegressionModelRepository,
-)
+from app.modules.regression.core.models import BenchmarkSession, MCCVIterationModel
+from app.modules.regression.repositories import BenchmarkSessionRepository
 
 
 class BatchEstimateUseCase:
     """
     Use case khusus untuk menjalankan simulasi batch / validasi silang Monte Carlo
-    pada 4 algoritma regresi dan menyimpan riwayatnya ke database.
+    pada 4 algoritma regresi dan menyimpan riwayat sesi dan iterasinya ke database.
     """
 
     @inject
-    def __init__(self, repository: RegressionModelRepository):
+    def __init__(self, repository: BenchmarkSessionRepository):
         self.repository = repository
 
-    async def execute(
+    async def batch_estimate(
         self,
         file_path: Union[str, Path],
         seeds: Optional[List[int]] = None,
         n_splits: int = 200,
+        session_name: Optional[str] = None,
         feature_cols: Optional[List[str]] = None,
         target_col: str = "O3",
-        test_size: float = 0.3,
+        test_size: float = 0.2,
         fit_intercept: bool = True,
         estimator_types: Optional[List[str]] = None,
         save_to_db: bool = True,
@@ -107,15 +106,13 @@ class BatchEstimateUseCase:
             progress_callback=progress_callback,
         )
 
-        # 3. Transformasi record ke entitas SQLAlchemy ORM
+        summary_rows = benchmark_result.summary_rows
+
+        # 3. Transformasi record iterasi ke entitas MCCVIterationModel
         orm_records = [
-            RegressionModel(
-                dataset_name=path_obj.name,
+            MCCVIterationModel(
                 estimator_type=rec.estimator_type,
-                fit_intercept=rec.fit_intercept,
                 random_state=rec.random_state,
-                test_size=rec.test_size,
-                total_samples=rec.total_samples,
                 intercept=rec.intercept,
                 coefficients=rec.coefficients,
                 scale=rec.scale,
@@ -131,30 +128,35 @@ class BatchEstimateUseCase:
             for rec in benchmark_result.records
         ]
 
-        # 4. Simpan ke basis data via Repository
-        deleted_count = 0
-        saved_count = 0
+        # 4. Simpan ke basis data sebagai Sesi Benchmark Baru
+        saved_session = None
         if save_to_db:
-            if verbose:
-                print(f"\nMenghubungkan ke PostgreSQL untuk menyimpan {len(orm_records)} data evaluasi...")
-
-            deleted_count = await self.repository.delete_by_dataset_and_test_size(
+            resolved_session_name = session_name or f"Benchmark {path_obj.stem} (Test {int(test_size * 100)}%)"
+            session_entity = BenchmarkSession(
+                session_name=resolved_session_name,
                 dataset_name=path_obj.name,
                 test_size=test_size,
+                total_seeds=len(benchmark_result.seeds),
+                total_samples=total_samples,
+                fit_intercept=fit_intercept,
+                summary_metrics=[row.model_dump() for row in summary_rows],
             )
-            if verbose and deleted_count > 0:
-                print(f"Menghapus {deleted_count} data lama untuk dataset '{path_obj.name}' (test_size={test_size})...")
 
-            saved_count = await self.repository.bulk_create(orm_records)
             if verbose:
-                print(f"SUKSES: Sebanyak {saved_count} data berhasil disimpan ke tabel 'regression_models'!")
+                print(f"\nMenyimpan sesi '{resolved_session_name}' dan {len(orm_records)} data iterasi ke PostgreSQL...")
+
+            saved_session = await self.repository.save_session(
+                session=session_entity,
+                iterations=orm_records,
+            )
+
+            if verbose:
+                print(f"SUKSES: Sesi ID {saved_session.id} ('{saved_session.session_name}') berhasil disimpan ke tabel 'benchmark_sessions' & 'mccv_iterations'!")
 
         # 5. Cetak Rangkuman Statistik
-        summary_rows = benchmark_result.summary_rows
         if verbose:
             print("=" * 78)
-            
-            print(f"    RANGKUMAN DARI {len(seeds)} PERCOBAAN PADA DATA LATIH (TRAIN)")
+            print(f"    RANGKUMAN DARI {len(benchmark_result.seeds)} PERCOBAAN PADA DATA LATIH (TRAIN)")
             print("=" * 78)
             print(f"{'Estimator':<14} | {'R2 Train (Mean +/- Std)':<23} | {'RMSE Train':<16} | {'MAE Train':<16}")
             print("-" * 78)
@@ -167,10 +169,8 @@ class BatchEstimateUseCase:
                 )
 
             print("\n" + "=" * 78)
-                
-            print("\n" + "=" * 76)
-            print(f"    RANGKUMAN DARI {len(seeds)} PERCOBAAN PADA DATA UJI (TEST)")
-            print("=" * 76)
+            print(f"    RANGKUMAN DARI {len(benchmark_result.seeds)} PERCOBAAN PADA DATA UJI (TEST)")
+            print("=" * 78)
             print(f"{'Estimator':<14} | {'R2 Test (Mean +/- Std)':<23} | {'RMSE Test':<16} | {'MAE Test':<16}")
             print("-" * 78)
             for row in summary_rows:
@@ -180,18 +180,16 @@ class BatchEstimateUseCase:
                     f"{row.test_rmse_display:<16} | "
                     f"{row.test_mae_display:<16}"
                 )
-                
             print("=" * 78)
 
         return {
+            "session_id": saved_session.id if saved_session else None,
+            "session_name": saved_session.session_name if saved_session else None,
             "dataset_name": path_obj.name,
             "total_samples": total_samples,
             "total_seeds": len(benchmark_result.seeds),
             "seeds": benchmark_result.seeds,
             "total_records": len(orm_records),
-            "deleted_old_records": deleted_count,
-            "saved_records": saved_count,
+            "saved_records": len(orm_records) if save_to_db else 0,
             "summary": [row.model_dump() for row in summary_rows],
         }
-
-

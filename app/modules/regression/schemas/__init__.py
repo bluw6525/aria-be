@@ -2,6 +2,7 @@ from app.modules.regression.schemas.model_schema import (
     TrainedModelBase,
     TrainedModelCreate,
     TrainedModelResponse,
+    PromoteModelRequest,
 )
 from app.modules.regression.schemas.outlier_schema import (
     OutlierCategorySummary,
@@ -30,6 +31,7 @@ __all__ = [
     "TrainedModelBase",
     "TrainedModelCreate",
     "TrainedModelResponse",
+    "PromoteModelRequest",
     # Outlier Schemas
     "OutlierCategorySummary",
     "OutlierDetectionResponse",
