@@ -4,9 +4,11 @@ Menggunakan Dependency Injection terpisah per Use Case melalui fastapi_injector.
 """
 
 from typing import List
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Query
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Query, Depends
 from fastapi_injector import Injected
 
+from app.modules.auth.core.models import User
+from app.modules.auth.dependencies import require_admin
 from app.modules.regression.schemas import (
     TrainedModelResponse,
     TrainedModelCreate,
@@ -57,6 +59,7 @@ async def get_model(
 @router.delete("/models/{model_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_model(
     model_id: int,
+    admin: User = Depends(require_admin),
     usecase: ModelUseCase = Injected(ModelUseCase)
 ):
     """Menghapus model dari basis data."""
@@ -69,6 +72,7 @@ async def delete_model(
 @router.post("/save", response_model=TrainedModelResponse, status_code=status.HTTP_201_CREATED)
 async def save_model_endpoint(
     payload: TrainedModelCreate,
+    admin: User = Depends(require_admin),
     usecase: ModelUseCase = Injected(ModelUseCase)
 ):
     """Menyimpan parameter model hasil pelatihan ke basis data."""
@@ -86,6 +90,7 @@ async def save_model_endpoint(
 async def detect_outliers_endpoint(
     file: UploadFile = File(..., description="Berkas data latih (.xlsx, .xls, .csv)"),
     fit_intercept: bool = Form(True),
+    admin: User = Depends(require_admin),
     usecase: DetectOutliersUseCase = Injected(DetectOutliersUseCase)
 ):
     """Mendeteksi outlier pada berkas data latih menggunakan Leverage dan DFFITS."""
@@ -104,6 +109,7 @@ async def train_model_endpoint(
     file: UploadFile = File(..., description="Berkas data latih (.xlsx, .xls, .csv)"),
     estimator_type: str = Form("MM", description="Tipe estimator: MM, MM-Low, MM-High, M, S, atau OLS"),
     fit_intercept: bool = Form(True),
+    admin: User = Depends(require_admin),
     usecase: TrainModelUseCase = Injected(TrainModelUseCase)
 ):
     """Melatih model regresi robust pada data latih dan mengembalikan metrik evaluasi serta grafik."""
@@ -125,6 +131,7 @@ async def train_model_endpoint(
 async def test_model_endpoint(
     model_id: int,
     file: UploadFile = File(..., description="Berkas data uji (.xlsx, .xls, .csv)"),
+    admin: User = Depends(require_admin),
     usecase: TestModelUseCase = Injected(TestModelUseCase)
 ):
     """Menguji model tersimpan di database dengan berkas data uji baru."""
@@ -142,6 +149,7 @@ async def test_custom_model_endpoint(
     estimator_type: str = Form("MM", description="Tipe estimator"),
     model_name: str = Form("Model Baru Dilatih", description="Label nama model"),
     file: UploadFile = File(..., description="Berkas data uji (.xlsx, .xls, .csv)"),
+    admin: User = Depends(require_admin),
     usecase: TestModelUseCase = Injected(TestModelUseCase)
 ):
     """Menguji parameter model langsung (misal model yang baru dilatih tanpa disimpan ke database)."""

@@ -7,6 +7,7 @@ from app.core.database import engine
 from app.core.middleware import CloseDatabaseSessionsMiddleware
 from app.core.factory import app_injector
 from app.modules.regression.router import router as regression_router
+from app.modules.auth.router import router as auth_router
 
 
 @asynccontextmanager
@@ -36,11 +37,12 @@ app.add_middleware(InjectorMiddleware, injector=app_injector)
 # Lampirkan injector ke FastAPI app instance
 attach_injector(app, app_injector)
 
-# Registrasi router modul regresi
+# Registrasi router modul regresi & autentikasi
+app.include_router(auth_router, prefix=settings.API_V1_STR)
 app.include_router(regression_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health", tags=["Health"])
-async def health_check():
+def health_check():
     """Endpoint pemeriksaan kesehatan server (keep-alive)."""
     return {"status": "alive"}

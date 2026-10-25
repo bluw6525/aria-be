@@ -9,6 +9,7 @@ from app.core.container import DatabaseModule
 
 
 from app.modules.regression.container import RegressionContainer
+from app.modules.auth.container import AuthContainer
 
 
 def _create_app_modules() -> Iterable[Module]:
@@ -16,7 +17,7 @@ def _create_app_modules() -> Iterable[Module]:
     Fungsi internal untuk mendaftarkan seluruh modul domain/fitur bisnis ke container.
     Jika membuat fitur baru (misal User, Order), tambahkan containernya di sini.
     """
-    return [RegressionContainer()]
+    return [RegressionContainer(), AuthContainer()]
 
 
 def create_injector() -> Injector:

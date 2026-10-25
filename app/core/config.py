@@ -18,7 +18,11 @@ class Settings:
         "postgresql+asyncpg://postgres:postgres@localhost:5432/aria_db"
     )
 
+    # Konfigurasi Keamanan & Token JWT
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "aria-super-secure-production-jwt-secret-key-2026")
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", str(60 * 24 * 7)))  # 7 hari
+
 
 # Instance tunggal Settings yang siap diimpor dan digunakan di seluruh bagian aplikasi
 settings = Settings()
-
