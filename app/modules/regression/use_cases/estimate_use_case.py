@@ -8,7 +8,7 @@ from fastapi import UploadFile
 from injector import inject
 
 from app.modules.regression.repositories import TrainedModelRepository
-from app.modules.regression.core.file_parser import parse_batch_estimate_file
+from app.modules.regression.core.parser import parse_batch_estimate_file
 from app.modules.regression.core.ispu import get_ispu_category
 from app.modules.regression.schemas import (
     SingleEstimateRequest,

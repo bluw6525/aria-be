@@ -3,7 +3,7 @@ from app.modules.regression.core.cross_validation import (
     MCCVIterationResult,
     run_monte_carlo_cv,
 )
-from app.modules.regression.core.file_parser import (
+from app.modules.regression.core.parser import (
     match_column,
     parse_and_validate_file,
     parse_batch_estimate_file,

@@ -3,7 +3,7 @@ Schema Pydantic untuk Evaluasi Validasi Silang Monte Carlo (Benchmark Regresi).
 """
 
 from typing import Dict, List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class MCCVIterationResult(BaseModel):
@@ -59,4 +59,54 @@ class MCCVBenchmarkResult(BaseModel):
     """
     records: List[MCCVIterationResult]
     summary_rows: List[BenchmarkSummaryRow]
+    seeds: List[int] = []
+
+
+class BenchmarkSessionResponse(BaseModel):
+    id: int
+    session_name: Optional[str] = None
+    dataset_name: str
+    test_size: float
+    total_seeds: int
+    total_samples: Optional[int] = None
+    fit_intercept: bool
+    summary_metrics: Optional[List[Dict]] = None
+    created_at: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MCCVIterationResponse(BaseModel):
+    id: int
+    session_id: int
+    estimator_type: str
+    random_state: Optional[int] = None
+    intercept: Optional[float] = None
+    coefficients: Dict[str, float]
+    scale: Optional[float] = None
+    iterations: Optional[int] = None
+    converged: Optional[bool] = None
+    test_rmse: float
+    test_mae: float
+    test_r2: float
+    train_rmse: Optional[float] = None
+    train_mae: Optional[float] = None
+    train_r2: Optional[float] = None
+    created_at: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedIterationsResponse(BaseModel):
+    items: List[MCCVIterationResponse]
+    total: int
+    page: int
+    limit: int
+    total_pages: int
+
+
+class BenchmarkRunResponse(BaseModel):
+    session: BenchmarkSessionResponse
+    summary_rows: List[BenchmarkSummaryRow]
+    top_iterations: List[MCCVIterationResponse]
     seeds: List[int] = []

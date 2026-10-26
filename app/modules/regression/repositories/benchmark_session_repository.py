@@ -3,9 +3,9 @@ Repository untuk entitas BenchmarkSession dan MCCVIterationModel.
 Menangani persistensi sesi benchmark Monte Carlo Cross-Validation dan riwayat iterasinya.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from injector import inject
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.regression.core.models import BenchmarkSession, MCCVIterationModel
@@ -74,6 +74,39 @@ class BenchmarkSessionRepository:
         stmt = stmt.order_by(MCCVIterationModel.id.asc())
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_iterations_paginated(
+        self,
+        session_id: int,
+        offset: int = 0,
+        limit: int = 20,
+        estimator_type: Optional[str] = None,
+        sort_by: str = "test_r2",
+        sort_order: str = "desc",
+    ) -> Tuple[List[MCCVIterationModel], int]:
+        """
+        Mengambil record iterasi dalam satu sesi dengan paginasi dan pengurutan (default: test_r2 DESC).
+        """
+        base_filter = [MCCVIterationModel.session_id == session_id]
+        if estimator_type:
+            base_filter.append(MCCVIterationModel.estimator_type == estimator_type)
+
+        count_stmt = select(func.count(MCCVIterationModel.id)).filter(*base_filter)
+        count_res = await self.db.execute(count_stmt)
+        total_count = count_res.scalar() or 0
+
+        sort_col = getattr(MCCVIterationModel, sort_by, MCCVIterationModel.test_r2)
+        order_expr = sort_col.desc() if sort_order.lower() == "desc" else sort_col.asc()
+
+        stmt = (
+            select(MCCVIterationModel)
+            .filter(*base_filter)
+            .order_by(order_expr, MCCVIterationModel.id.asc())
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all()), total_count
 
     async def get_iteration_by_id(self, iteration_id: int) -> Optional[MCCVIterationModel]:
         """

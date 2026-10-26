@@ -3,21 +3,27 @@ Router FastAPI untuk Modul Regresi Robust (Latih, Uji, Deteksi Outlier, dan Esti
 Menggunakan Dependency Injection terpisah per Use Case melalui fastapi_injector.
 """
 
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Query, Depends
 from fastapi_injector import Injected
 
+from app.core.pagination import calculate_offset, calculate_total_pages
 from app.modules.auth.core.models import User
 from app.modules.auth.dependencies import require_admin
 from app.modules.regression.schemas import (
     TrainedModelResponse,
     TrainedModelCreate,
+    PromoteModelRequest,
     OutlierDetectionResponse,
     TrainModelResult,
     TestModelResult,
     SingleEstimateRequest,
     SingleEstimateResponse,
     BatchEstimateResponse,
+    BenchmarkSessionResponse,
+    MCCVIterationResponse,
+    PaginatedIterationsResponse,
+    BenchmarkRunResponse,
 )
 from app.modules.regression.use_cases import (
     DetectOutliersUseCase,
@@ -25,6 +31,7 @@ from app.modules.regression.use_cases import (
     TestModelUseCase,
     ModelUseCase,
     EstimateUseCase,
+    BatchEstimateUseCase,
 )
 
 router = APIRouter(prefix="/regression", tags=["Regression & Models"])
@@ -78,6 +85,19 @@ async def save_model_endpoint(
     """Menyimpan parameter model hasil pelatihan ke basis data."""
     try:
         return await usecase.save_model(payload)
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
+
+
+@router.post("/models/promote", response_model=TrainedModelResponse, status_code=status.HTTP_201_CREATED)
+async def promote_model_endpoint(
+    payload: PromoteModelRequest,
+    admin: User = Depends(require_admin),
+    usecase: ModelUseCase = Injected(ModelUseCase),
+):
+    """Mempromosikan hasil iterasi MCCV terbaik menjadi Model Tersimpan definitif."""
+    try:
+        return await usecase.promote_model(payload)
     except ValueError as err:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
 
@@ -194,3 +214,95 @@ async def estimate_file_endpoint(
         return await usecase.estimate_from_file(model_id=model_id, file=file)
     except ValueError as err:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
+
+
+# ============================================================================
+# 6. Endpoints Evaluasi & Benchmark MCCV (/benchmark)
+# ============================================================================
+
+@router.post("/benchmark/run", response_model=BenchmarkRunResponse)
+async def run_benchmark_endpoint(
+    file: UploadFile = File(..., description="Berkas dataset latih (.xlsx, .csv)"),
+    session_name: Optional[str] = Form(None, description="Nama sesi benchmark opsional"),
+    n_splits: int = Form(200, ge=1, le=1000, description="Jumlah iterasi seed pengacakan"),
+    seeds: Optional[str] = Form(None, description="Daftar seed kustom (pisahkan koma/spasi)"),
+    test_size: float = Form(0.2, gt=0.0, lt=1.0, description="Proporsi data uji"),
+    fit_intercept: bool = Form(True, description="Apakah estimator menggunakan intercept"),
+    estimator_types: Optional[str] = Form(None, description="Daftar estimator dipisahkan koma atau JSON"),
+    admin: User = Depends(require_admin),
+    usecase: BatchEstimateUseCase = Injected(BatchEstimateUseCase),
+):
+    try:
+        return await usecase.batch_estimate(
+            file_path=file,
+            seeds=seeds,
+            n_splits=n_splits,
+            session_name=session_name,
+            test_size=test_size,
+            fit_intercept=fit_intercept,
+            estimator_types=estimator_types,
+            save_to_db=True,
+            verbose=False,
+        )
+    except Exception as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
+
+
+@router.get("/benchmark/sessions", response_model=List[BenchmarkSessionResponse])
+async def list_benchmark_sessions_endpoint(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
+    usecase: BatchEstimateUseCase = Injected(BatchEstimateUseCase),
+):
+    """Mengambil daftar seluruh sesi benchmark sebelumnya."""
+    offset = calculate_offset(page=page, limit=limit)
+    return await usecase.list_sessions(offset=offset, limit=limit)
+
+
+@router.get("/benchmark/sessions/{session_id}", response_model=BenchmarkSessionResponse)
+async def get_benchmark_session_endpoint(
+    session_id: int,
+    usecase: BatchEstimateUseCase = Injected(BatchEstimateUseCase),
+):
+    """Mengambil detail satu sesi benchmark beserta ringkasan metrik agregatnya."""
+    session = await usecase.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Sesi benchmark ID {session_id} tidak ditemukan.")
+    return session
+
+
+@router.get("/benchmark/sessions/{session_id}/iterations", response_model=PaginatedIterationsResponse)
+async def get_benchmark_iterations_endpoint(
+    session_id: int,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=200),
+    estimator_type: Optional[str] = Query(None),
+    sort_by: str = Query("test_r2"),
+    sort_order: str = Query("desc"),
+    usecase: BatchEstimateUseCase = Injected(BatchEstimateUseCase),
+):
+    """Mengambil data iterasi dalam satu sesi secara berpaginasi (diurutkan test_r2 terbesar ke terkecil)."""
+    offset = calculate_offset(page=page, limit=limit)
+    return await usecase.get_iterations_paginated(
+        session_id=session_id,
+        offset=offset,
+        limit=limit,
+        page=page,
+        estimator_type=estimator_type,
+        sort_by=sort_by,
+        sort_order=sort_order,
+    )
+
+
+@router.delete("/benchmark/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_benchmark_session_endpoint(
+    session_id: int,
+    admin: User = Depends(require_admin),
+    usecase: BatchEstimateUseCase = Injected(BatchEstimateUseCase),
+):
+    """Menghapus sesi benchmark dan seluruh baris iterasinya."""
+    deleted = await usecase.delete_session(session_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Sesi benchmark ID {session_id} tidak ditemukan.")
+
+

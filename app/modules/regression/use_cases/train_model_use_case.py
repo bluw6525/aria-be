@@ -6,7 +6,7 @@ import asyncio
 from fastapi import UploadFile
 from injector import inject
 
-from app.modules.regression.core.file_parser import parse_and_validate_file
+from app.modules.regression.core.parser import parse_and_validate_file
 from app.modules.regression.algorithms.mm_estimator import MMEstimator
 from app.modules.regression.algorithms.m_estimator import MEstimator
 from app.modules.regression.algorithms.s_estimator import SEstimator

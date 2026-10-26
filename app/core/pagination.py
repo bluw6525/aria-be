@@ -26,3 +26,11 @@ def calculate_offset(page: int = 1, limit: int = 10) -> int:
     safe_page = max(1, page)
     safe_limit = max(1, limit)
     return (safe_page - 1) * safe_limit
+
+
+def calculate_total_pages(total: int, limit: int = 10) -> int:
+    """
+    Menghitung total halaman berdasarkan jumlah total baris dan limit per halaman.
+    """
+    safe_limit = max(1, limit)
+    return max(1, (total + safe_limit - 1) // safe_limit)

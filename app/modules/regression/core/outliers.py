@@ -41,6 +41,9 @@ class OutlierDetector:
         # 4. Detail Observasi Pencilan (Lazy / On-demand)
         self.detail_outliers_: Optional[List[Dict[str, Any]]] = None
 
+        # 5. Pemetaan indeks baris data asli (sebelum prapemrosesan)
+        self.original_indices_: Optional[np.ndarray] = None
+
     def calculate_leverage(self, X: np.ndarray) -> "OutlierDetector":
         """
         Menghitung nilai Leverage (diagonal matriks topi h_ii) dan ambang batasnya (2p / n).
@@ -119,12 +122,12 @@ class OutlierDetector:
 
         # Studentized Deleted Residual (t_i)
         denom = sse * (1.0 - self.hat_matrix_diag_) - (e ** 2)
-        denom = np.maximum(denom, 1e-12)
+        denom = np.maximum(denom, 1e-8)
         t_studentized = e * np.sqrt(df_residual / denom)
 
         # DFFITS
         leverage_factor = np.maximum(
-            self.hat_matrix_diag_ / np.maximum(1.0 - self.hat_matrix_diag_, 1e-12),
+            self.hat_matrix_diag_ / np.maximum(1.0 - self.hat_matrix_diag_, 1e-8),
             0.0
         )
         self.dffits_ = t_studentized * np.sqrt(leverage_factor)
@@ -138,10 +141,13 @@ class OutlierDetector:
         X: np.ndarray,
         y: np.ndarray,
         method: str = "both",
-        model: Optional[OLSEstimator] = None
+        model: Optional[OLSEstimator] = None,
+        original_indices: Optional[Union[np.ndarray, List[int]]] = None,
     ) -> "OutlierDetector":
         """
         Mendeteksi observasi outlier pada data X dan y.
+        Jika original_indices diberikan, penomoran observasi pada hasil deteksi akan
+        merujuk pada baris data sebelum prapemrosesan (1-indexed baris asli).
         """
         X = np.asarray(X, dtype=float)
         y = np.asarray(y, dtype=float)
@@ -155,6 +161,9 @@ class OutlierDetector:
 
         method = method.lower().strip()
         self.active_method_ = method
+        self.original_indices_ = (
+            np.asarray(original_indices, dtype=int) if original_indices is not None else None
+        )
 
         # 1. Eksekusi perhitungan sesuai metode pilihan
         if method == "leverage":
@@ -199,6 +208,13 @@ class OutlierDetector:
         for row_idx in outlier_indices:
             idx = int(row_idx)
 
+            # Ambil nomor baris asli sebelum prapemrosesan jika tersedia
+            orig_idx = (
+                int(self.original_indices_[idx])
+                if (self.original_indices_ is not None and idx < len(self.original_indices_))
+                else idx
+            )
+
             # Tentukan status klasifikasi
             if self.active_method_ == "leverage":
                 status = "Leverage Outlier"
@@ -213,8 +229,9 @@ class OutlierDetector:
                     status = "DFFITS Only"
 
             item: Dict[str, Any] = {
-                "observation_id": idx + 1,        # 1-indexed (urutan baris observasi)
-                "row_index": idx,                 # 0-indexed (indeks array Python)
+                "observation_id": orig_idx + 1,        # 1-indexed (urutan baris observasi data asli)
+                "row_index": orig_idx,                 # 0-indexed (indeks baris data asli)
+                "processed_index": idx + 1,            # 1-indexed (urutan data bersih prapemrosesan)
                 "status": status,
             }
 
@@ -244,7 +261,15 @@ class OutlierDetector:
         if self.is_outlier_ is None:
             raise ValueError("Jalankan .fit(X, y) terlebih dahulu sebelum memanggil .to_dict().")
 
-        outlier_indices = (np.where(self.is_outlier_)[0] + 1).tolist()
+        def _get_indices(mask: Optional[np.ndarray]) -> List[int]:
+            if mask is None:
+                return []
+            clean_idx = np.where(mask)[0]
+            if self.original_indices_ is not None and len(self.original_indices_) == len(mask):
+                return (self.original_indices_[clean_idx] + 1).tolist()
+            return (clean_idx + 1).tolist()
+
+        outlier_indices = _get_indices(self.is_outlier_)
 
         result: Dict[str, Any] = {
             "method": self.active_method_,
@@ -268,16 +293,16 @@ class OutlierDetector:
             # 2. Irisan Keduanya
             result["both"] = {
                 "outliers_count": int(np.sum(self.is_both_outlier_)),
-                "outlier_indices": (np.where(self.is_both_outlier_)[0] + 1).tolist(),
+                "outlier_indices": _get_indices(self.is_both_outlier_),
             }
             # 3. Parsial (Hanya salah satu)
             result["leverage_only"] = {
                 "outliers_count": int(np.sum(self.is_leverage_only_)),
-                "outlier_indices": (np.where(self.is_leverage_only_)[0] + 1).tolist(),
+                "outlier_indices": _get_indices(self.is_leverage_only_),
             }
             result["dffits_only"] = {
                 "outliers_count": int(np.sum(self.is_dffits_only_)),
-                "outlier_indices": (np.where(self.is_dffits_only_)[0] + 1).tolist(),
+                "outlier_indices": _get_indices(self.is_dffits_only_),
             }
 
         # Metrik Leverage jika dihitung
@@ -285,7 +310,7 @@ class OutlierDetector:
             result["leverage"] = {
                 "threshold": float(self.leverage_threshold_),
                 "outliers_count": int(np.sum(self.is_leverage_outlier_)),
-                "outlier_indices": (np.where(self.is_leverage_outlier_)[0] + 1).tolist(),
+                "outlier_indices": _get_indices(self.is_leverage_outlier_),
             }
 
         # Metrik DFFITS jika dihitung
@@ -293,7 +318,7 @@ class OutlierDetector:
             result["dffits"] = {
                 "threshold": float(self.dffits_threshold_),
                 "outliers_count": int(np.sum(self.is_dffits_outlier_)),
-                "outlier_indices": (np.where(self.is_dffits_outlier_)[0] + 1).tolist(),
+                "outlier_indices": _get_indices(self.is_dffits_outlier_),
             }
 
         return result

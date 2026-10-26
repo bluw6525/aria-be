@@ -44,6 +44,7 @@ class MMEstimator(BaseRegressionEstimator):
         self.weights_ = None
         self.residuals_ = None
         self.fittedvalues_ = None
+        self.iteration_history_ = []
         self.converged_ = False
         self.n_iter_ = 0
         self.s_estimator_ = None

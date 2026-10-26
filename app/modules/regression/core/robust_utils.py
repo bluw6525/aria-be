@@ -107,8 +107,8 @@ def weight_s_scale(u, k=1.547):
     # 2. Ambil nilai mutlak dari u (|u|)
     abs_u = np.abs(u)
 
-    # 3. Beri batas pengaman nilai minimum u (1e-12) agar tidak terjadi pembagian dengan nol
-    u_safe = np.where(abs_u < 1e-12, 1e-12, abs_u)
+    # 3. Beri batas pengaman nilai minimum u (1e-8) agar tidak terjadi pembagian dengan nol
+    u_safe = np.where(abs_u < 1e-8, 1e-8, abs_u)
 
     # 4. Langkah 1: Hitung (u / k)
     u_div_k = u_safe / k

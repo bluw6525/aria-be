@@ -7,7 +7,7 @@ from fastapi import UploadFile
 from injector import inject
 
 from app.modules.regression.repositories import TrainedModelRepository
-from app.modules.regression.core.file_parser import parse_and_validate_file
+from app.modules.regression.core.parser import parse_and_validate_file
 from app.modules.regression.core.metrics import (
     calculate_rmse,
     calculate_mae,

@@ -4,7 +4,7 @@ Menjalankan komputasi simulasi perbandingan performa estimator (OLS, S, M, MM).
 """
 
 import random
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Union
 import numpy as np
 
 from app.modules.regression.algorithms.ols_estimator import OLSEstimator
@@ -16,12 +16,58 @@ from app.modules.regression.core.metrics import (
     calculate_mae,
     calculate_r2,
 )
+from app.modules.regression.core.parser import parse_raw_seeds
 from app.modules.regression.core.split import split_data
 from app.modules.regression.schemas import (
     MCCVIterationResult,
     BenchmarkSummaryRow,
     MCCVBenchmarkResult,
 )
+
+
+def resolve_seeds(seeds: Optional[Union[str, List[int]]], n_splits: int) -> List[int]:
+    """
+    Menyiapkan daftar seed pengacakan sesuai ketentuan:
+    - Jika seeds None/kosong: generate sebanyak n_splits secara acak.
+    - Jika len(seeds) >= n_splits (contoh 201 dari 200): ambil tepat n_splits terdepan (200).
+    - Jika 0 < len(seeds) < n_splits (contoh 1 dari 200): pertahankan seed yang dimasukkan,
+      lalu lengkapi kekurangannya dengan seed acak unik hingga mencapai n_splits.
+    """
+    if isinstance(seeds, str):
+        seeds = parse_raw_seeds(seeds)
+
+    if not seeds:
+        return random.sample(range(1, 100000), n_splits)
+
+    cleaned_seeds: List[int] = []
+    seen = set()
+    for s in seeds:
+        try:
+            s_int = int(s)
+            if s_int not in seen:
+                seen.add(s_int)
+                cleaned_seeds.append(s_int)
+        except (ValueError, TypeError):
+            continue
+
+    if not cleaned_seeds:
+        return random.sample(range(1, 100000), n_splits)
+
+    if len(cleaned_seeds) >= n_splits:
+        return cleaned_seeds[:n_splits]
+
+    needed = n_splits - len(cleaned_seeds)
+    pool = set()
+    while len(pool) < needed:
+        candidates = random.sample(range(1, 100000), min(needed * 2, 90000))
+        for cand in candidates:
+            if cand not in seen and cand not in pool:
+                pool.add(cand)
+                if len(pool) == needed:
+                    break
+
+    cleaned_seeds.extend(list(pool))
+    return cleaned_seeds
 
 
 def run_monte_carlo_cv(
@@ -47,10 +93,10 @@ def run_monte_carlo_cv(
     feature_cols : List[str]
         Nama-nama kolom fitur independen.
     seeds : Optional[List[int]], default=None
-        Daftar seed pengacakan untuk iterasi split train/test. Jika None atau kosong,
-        akan di-generate secara acak sebanyak `n_splits`.
+        Daftar seed pengacakan untuk iterasi split train/test. Jika None atau kurang dari n_splits,
+        sisanya akan di-generate secara acak hingga tepat n_splits. Jika lebih, diambil n_splits pertama.
     n_splits : int, default=200
-        Jumlah split acak yang di-generate jika `seeds` bernilai None/kosong.
+        Jumlah split acak yang digunakan.
     test_size : float, default=0.3
         Proporsi data uji.
     fit_intercept : bool, default=True
@@ -66,8 +112,7 @@ def run_monte_carlo_cv(
         Objek berisi daftar seluruh record evaluasi iteratif, tabel rangkuman agregat statistik,
         dan daftar seeds yang digunakan.
     """
-    if not seeds:
-        seeds = random.sample(range(1, 100000), n_splits)
+    seeds = resolve_seeds(seeds, n_splits)
 
     X = np.asarray(X, dtype=float)
     y = np.asarray(y, dtype=float)

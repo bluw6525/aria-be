@@ -3,23 +3,31 @@ Use Case untuk Benchmarking Regresi Batch Monte Carlo (OLS, S, M, MM).
 Mengorkestrasi pembacaan data, eksekusi cross-validation core, persistensi sesi benchmark ke PostgreSQL, dan ekspor ringkasan CSV.
 """
 
-import random
+import asyncio
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 from injector import inject
 
+from app.core.pagination import calculate_total_pages
 from app.modules.regression.core.cross_validation import (
-    MCCVBenchmarkResult,
+    resolve_seeds,
     run_monte_carlo_cv,
 )
-from app.modules.regression.core.file_parser import (
+from app.modules.regression.core.parser import (
     parse_and_validate_file,
+    parse_raw_estimators,
     read_uploaded_dataframe
 )
 from app.modules.regression.core.models import BenchmarkSession, MCCVIterationModel
 from app.modules.regression.repositories import BenchmarkSessionRepository
+from app.modules.regression.schemas import (
+    BenchmarkSessionResponse,
+    MCCVIterationResponse,
+    PaginatedIterationsResponse,
+    BenchmarkRunResponse,
+)
 
 
 class BatchEstimateUseCase:
@@ -34,32 +42,49 @@ class BatchEstimateUseCase:
 
     async def batch_estimate(
         self,
-        file_path: Union[str, Path],
-        seeds: Optional[List[int]] = None,
+        file_path: Union[str, Path, object],
+        seeds: Optional[Union[str, List[int]]] = None,
         n_splits: int = 200,
         session_name: Optional[str] = None,
         feature_cols: Optional[List[str]] = None,
         target_col: str = "O3",
         test_size: float = 0.2,
         fit_intercept: bool = True,
-        estimator_types: Optional[List[str]] = None,
+        estimator_types: Optional[Union[str, List[str]]] = None,
         save_to_db: bool = True,
         verbose: bool = True,
-    ) -> Dict:
+    ) -> BenchmarkRunResponse:
         """
         Menjalankan pipeline benchmark batch dan evaluasi Monte Carlo.
         """
-        path_obj = Path(file_path).resolve()
-        if not path_obj.exists():
-            raise FileNotFoundError(f"File dataset tidak ditemukan: {path_obj}")
+        # Siapkan seeds (resolve_seeds sudah mem-parse string/list/None)
+        seeds_list = resolve_seeds(seeds, n_splits)
+
+        # Siapkan estimator_types (parse jika string atau None)
+        parsed_estimators = parse_raw_estimators(estimator_types)
+        if not parsed_estimators:
+            parsed_estimators = ["OLS", "M", "S", "MM (k=4.685)", "MM (k=1.547)"]
+        estimator_types = parsed_estimators
+
+        if isinstance(file_path, (str, Path)):
+            path_obj = Path(file_path).resolve()
+            if not path_obj.exists():
+                raise FileNotFoundError(f"File dataset tidak ditemukan: {path_obj}")
+            dataset_name = path_obj.name
+            dataset_stem = path_obj.stem
+            file_input = path_obj
+        else:
+            dataset_name = getattr(file_path, "filename", "uploaded_dataset.xlsx")
+            dataset_stem = Path(dataset_name).stem
+            file_input = file_path
 
         # 1. Baca dan validasi berkas data (Excel / CSV) via core file parser
         if feature_cols is None:
             X, y, feature_cols, target_col = await parse_and_validate_file(
-                path_obj, require_target=True
+                file_input, require_target=True
             )
         else:
-            df = await read_uploaded_dataframe(path_obj)
+            df = await asyncio.to_thread(read_uploaded_dataframe, file_input)
             for col in feature_cols:
                 if col not in df.columns:
                     raise ValueError(f"Kolom fitur '{col}' tidak ditemukan dalam dataset.")
@@ -71,21 +96,15 @@ class BatchEstimateUseCase:
 
         total_samples = len(y)
 
-        if not seeds:
-            seeds = random.sample(range(1, 100000), n_splits)
-
-        if estimator_types is None:
-            estimator_types = ["OLS", "M", "S", "MM (k=4.685)", "MM (k=1.547)"]
-
         if verbose:
             print("=" * 76)
             print("   BENCHMARK RUNS (OLS, M, S, MM k=4.685, MM k=1.547) & POSTGRESQL   ")
             print("=" * 76)
             print(f"Dataset          : {path_obj.name} ({total_samples} sampel)")
-            print(f"Jumlah Seed      : {len(seeds)} random states")
+            print(f"Jumlah Seed      : {len(seeds_list)} random states")
             print(f"Rasio Split      : {int((1 - test_size) * 100)}% Latih : {int(test_size * 100)}% Uji")
             print(f"Fit Intercept    : {fit_intercept}")
-            print(f"Total Model      : {len(seeds) * len(estimator_types)} evaluasi ({len(estimator_types)} algoritma)")
+            print(f"Total Model      : {len(seeds_list) * len(estimator_types)} evaluasi ({len(estimator_types)} algoritma)")
             print("-" * 76)
             print("Menjalankan simulasi pengacakan...")
 
@@ -93,12 +112,13 @@ class BatchEstimateUseCase:
             if verbose and (idx % 50 == 0 or idx == total):
                 print(f" Progress: {idx}/{total} random states selesai diproses...")
 
-        # 2. Eksekusi Core Monte Carlo CV
-        benchmark_result = run_monte_carlo_cv(
+        # 2. Eksekusi Core Monte Carlo CV secara non-blocking via thread pool
+        benchmark_result = await asyncio.to_thread(
+            run_monte_carlo_cv,
             X=X,
             y=y,
             feature_cols=feature_cols,
-            seeds=seeds,
+            seeds=seeds_list,
             n_splits=n_splits,
             test_size=test_size,
             fit_intercept=fit_intercept,
@@ -108,33 +128,19 @@ class BatchEstimateUseCase:
 
         summary_rows = benchmark_result.summary_rows
 
-        # 3. Transformasi record iterasi ke entitas MCCVIterationModel
+        # 3. Transformasi record iterasi ke entitas MCCVIterationModel menggunakan model_dump
         orm_records = [
-            MCCVIterationModel(
-                estimator_type=rec.estimator_type,
-                random_state=rec.random_state,
-                intercept=rec.intercept,
-                coefficients=rec.coefficients,
-                scale=rec.scale,
-                iterations=rec.iterations,
-                converged=rec.converged,
-                test_rmse=rec.test_rmse,
-                test_mae=rec.test_mae,
-                test_r2=rec.test_r2,
-                train_rmse=rec.train_rmse,
-                train_mae=rec.train_mae,
-                train_r2=rec.train_r2,
-            )
+            MCCVIterationModel(**rec.model_dump())
             for rec in benchmark_result.records
         ]
 
         # 4. Simpan ke basis data sebagai Sesi Benchmark Baru
         saved_session = None
+        resolved_session_name = session_name or f"Benchmark {dataset_stem} (Test {int(test_size * 100)}%)"
         if save_to_db:
-            resolved_session_name = session_name or f"Benchmark {path_obj.stem} (Test {int(test_size * 100)}%)"
             session_entity = BenchmarkSession(
                 session_name=resolved_session_name,
-                dataset_name=path_obj.name,
+                dataset_name=dataset_name,
                 test_size=test_size,
                 total_seeds=len(benchmark_result.seeds),
                 total_samples=total_samples,
@@ -182,14 +188,84 @@ class BatchEstimateUseCase:
                 )
             print("=" * 78)
 
-        return {
-            "session_id": saved_session.id if saved_session else None,
-            "session_name": saved_session.session_name if saved_session else None,
-            "dataset_name": path_obj.name,
-            "total_samples": total_samples,
-            "total_seeds": len(benchmark_result.seeds),
-            "seeds": benchmark_result.seeds,
-            "total_records": len(orm_records),
-            "saved_records": len(orm_records) if save_to_db else 0,
-            "summary": [row.model_dump() for row in summary_rows],
-        }
+        # 6. Ambil 20 iterasi terbaik jika disimpan ke DB
+        top_iterations: List[MCCVIterationResponse] = []
+        if saved_session and saved_session.id:
+            paginated_res = await self.get_iterations_paginated(
+                session_id=saved_session.id,
+                offset=0,
+                limit=20,
+                sort_by="test_r2",
+                sort_order="desc",
+            )
+            top_iterations = paginated_res.items
+
+        if saved_session:
+            session_resp = BenchmarkSessionResponse.model_validate(saved_session)
+        else:
+            session_resp = BenchmarkSessionResponse(
+                id=0,
+                session_name=session_name or f"Benchmark {dataset_stem}",
+                dataset_name=dataset_name,
+                test_size=test_size,
+                total_seeds=len(benchmark_result.seeds),
+                total_samples=total_samples,
+                fit_intercept=fit_intercept,
+                summary_metrics=[row.model_dump() for row in summary_rows],
+                created_at=None,
+            )
+
+        return BenchmarkRunResponse(
+            session=session_resp,
+            summary_rows=summary_rows,
+            top_iterations=top_iterations,
+            seeds=benchmark_result.seeds,
+        )
+
+    async def get_session(self, session_id: int) -> Optional[BenchmarkSessionResponse]:
+        """Mengambil satu sesi benchmark berdasarkan ID."""
+        session = await self.repository.get_session_by_id(session_id)
+        if not session:
+            return None
+        return BenchmarkSessionResponse.model_validate(session)
+
+    async def list_sessions(self, offset: int = 0, limit: int = 50) -> List[BenchmarkSessionResponse]:
+        """Mengambil daftar seluruh sesi benchmark."""
+        sessions = await self.repository.list_sessions(offset=offset, limit=limit)
+        return [BenchmarkSessionResponse.model_validate(s) for s in sessions]
+
+    async def get_iterations_paginated(
+        self,
+        session_id: int,
+        offset: int = 0,
+        limit: int = 20,
+        page: int = 1,
+        estimator_type: Optional[str] = None,
+        sort_by: str = "test_r2",
+        sort_order: str = "desc",
+    ) -> PaginatedIterationsResponse:
+        """Mengambil data iterasi dalam satu sesi secara terpaginasi."""
+        records, total_count = await self.repository.get_iterations_paginated(
+            session_id=session_id,
+            offset=offset,
+            limit=limit,
+            estimator_type=estimator_type,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
+        total_pages = calculate_total_pages(total=total_count, limit=limit)
+
+        items = [MCCVIterationResponse.model_validate(rec) for rec in records]
+
+        return PaginatedIterationsResponse(
+            items=items,
+            total=total_count,
+            page=page,
+            limit=limit,
+            total_pages=total_pages,
+        )
+
+    async def delete_session(self, session_id: int) -> bool:
+        """Menghapus sesi benchmark beserta seluruh data iterasinya."""
+        return await self.repository.delete_session(session_id)
+

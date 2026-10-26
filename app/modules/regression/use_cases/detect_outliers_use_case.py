@@ -7,7 +7,7 @@ import asyncio
 from fastapi import UploadFile
 from injector import inject
 
-from app.modules.regression.core.file_parser import parse_and_validate_file
+from app.modules.regression.core.parser import parse_and_validate_file
 from app.modules.regression.core.outliers import OutlierDetector
 from app.modules.regression.schemas import OutlierDetectionResponse
 
@@ -29,12 +29,16 @@ class DetectOutliersUseCase:
         """
         Menjalankan deteksi outlier pada data latih menggunakan Leverage dan DFFITS secara non-blocking.
         """
-        X, y, feature_cols, target_col = await parse_and_validate_file(file, require_target=True)
+        X, y, feature_cols, target_col, orig_indices = await parse_and_validate_file(
+            file, require_target=True, return_indices=True
+        )
         if y is None:
             raise ValueError("Target y diperlukan untuk deteksi DFFITS.")
 
         detector = OutlierDetector(fit_intercept=fit_intercept)
-        await asyncio.to_thread(detector.fit, X, y, method="both")
+        await asyncio.to_thread(
+            detector.fit, X, y, method="both", original_indices=orig_indices
+        )
         res_dict = detector.to_dict(include_details=False)
 
         return OutlierDetectionResponse.from_detector_dict(res_dict)

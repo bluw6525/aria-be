@@ -24,6 +24,10 @@ from app.modules.regression.schemas.benchmark_schema import (
     MCCVIterationResult,
     BenchmarkSummaryRow,
     MCCVBenchmarkResult,
+    BenchmarkSessionResponse,
+    MCCVIterationResponse,
+    PaginatedIterationsResponse,
+    BenchmarkRunResponse,
 )
 
 __all__ = [

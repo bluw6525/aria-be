@@ -60,6 +60,12 @@ async def main():
         help="Nama sesi benchmark yang disimpan di database (default: otomatis)",
     )
     parser.add_argument(
+        "--seeds",
+        type=str,
+        default=None,
+        help="Daftar seed kustom dipisahkan koma (contoh: 42,100,2024). Jika kurang dari n_seeds akan dilengkapi, jika lebih akan dipotong.",
+    )
+    parser.add_argument(
         "--no-intercept",
         action="store_true",
         help="Nonaktifkan fit intercept",
@@ -77,6 +83,14 @@ async def main():
 
     args = parser.parse_args()
 
+    custom_seeds = None
+    if args.seeds:
+        custom_seeds = [
+            int(s.strip())
+            for s in args.seeds.split(",")
+            if s.strip().lstrip("-").isdigit()
+        ]
+
     # Buka sesi database asinkron dan jalankan use case
     async with AsyncSessionLocal() as session:
         repository = BenchmarkSessionRepository(db=session)
@@ -93,22 +107,22 @@ async def main():
             verbose=True,
         )
 
-        if result.get("session_id"):
-            print(f"\n[INFO] Sesi Benchmark ID : {result['session_id']}")
-            print(f"[INFO] Nama Sesi         : {result['session_name']}")
+        if result.session.id:
+            print(f"\n[INFO] Sesi Benchmark ID : {result.session.id}")
+            print(f"[INFO] Nama Sesi         : {result.session.session_name}")
 
-        if result.get("seeds"):
-            seeds_list = result["seeds"]
+        if result.seeds:
+            seeds_list = result.seeds
             preview = f"{seeds_list[:10]}... ({len(seeds_list)} total)" if len(seeds_list) > 10 else f"{seeds_list}"
             print(f"[INFO] Seed yang dipakai : {preview}")
 
-        if not args.no_csv and result.get("summary"):
+        if not args.no_csv and result.summary_rows:
             file_stem = Path(args.file).stem
             summary_dir = PROJECT_ROOT / "commands" / "summary" / "estimation"
             summary_dir.mkdir(parents=True, exist_ok=True)
             csv_path = summary_dir / f"summary_{file_stem}_{args.test_size}.csv"
 
-            df_summary = pd.DataFrame(result["summary"])
+            df_summary = pd.DataFrame([row.model_dump() for row in result.summary_rows])
             try:
                 df_summary.to_csv(csv_path, index=False)
                 print(f"\nRangkuman berhasil disimpan ke CSV: {csv_path}")
