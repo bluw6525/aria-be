@@ -108,9 +108,8 @@ class MMEstimator(BaseRegressionEstimator):
             })
 
             # Hitung beta_MM dengan WLS: (X' W X)^(-1) X' W Y
-            W = np.diag(weights)
-            XtWX = X_design.T @ W @ X_design
-            XtWy = X_design.T @ W @ y
+            XtWX = X_design.T @ (weights[:, None] * X_design)
+            XtWy = X_design.T @ (weights * y)
 
             try:
                 params_new = np.linalg.solve(XtWX, XtWy)

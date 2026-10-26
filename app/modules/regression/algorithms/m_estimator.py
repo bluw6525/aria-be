@@ -109,11 +109,9 @@ class MEstimator(BaseRegressionEstimator):
                 'weights': weights.copy(),
             })
 
-            # Pembentukan matriks pembobot diagonal W
-            W = np.diag(weights)
-            XtW = X_design.T @ W
-            XtWX = XtW @ X_design
-            XtWy = XtW @ y
+            # Pembentukan matriks pembobot XtWX dan XtWy
+            XtWX = X_design.T @ (weights[:, None] * X_design)
+            XtWy = X_design.T @ (weights * y)
 
             # Menyelesaikan sistem persamaan linier terboboti: (X'WX) * beta = X'Wy
             try:
