@@ -12,10 +12,10 @@ class Settings:
     # Prefix URL dasar untuk seluruh endpoint API versi 1, default: '/api/v1'
     API_V1_STR: str = os.getenv("API_V1_STR", "/api/v1")
 
-    # Connection string database PostgreSQL asinkron (menggunakan driver asyncpg)
+    # Connection string database SQLite asinkron (menggunakan driver aiosqlite)
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
-        "postgresql+asyncpg://postgres:postgres@localhost:5432/aria_db"
+        "sqlite+aiosqlite:///./aria.db"
     )
 
     # Konfigurasi Keamanan & Token JWT
