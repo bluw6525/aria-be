@@ -4,9 +4,8 @@ Dependensi FastAPI untuk validasi autentikasi dan otorisasi role (Admin Guard).
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi_injector import Injected
 
-from app.core.database import AsyncSessionLocal
 from app.modules.auth.core.models import User
 from app.modules.auth.core.security import decode_access_token
 from app.modules.auth.repositories.user_repository import UserRepository
@@ -16,10 +15,11 @@ security_scheme = HTTPBearer(auto_error=False)
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
+    repo: UserRepository = Injected(UserRepository),
 ) -> User:
     """
     Mengekstrak token Bearer dari Header HTTP, memvalidasinya,
-    dan mengambil entitas User dari database.
+    dan mengambil entitas User dari database melalui Dependency Injection container.
     """
     if not credentials:
         raise HTTPException(
@@ -45,16 +45,14 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    async with AsyncSessionLocal() as session:
-        repo = UserRepository(db=session)
-        user = await repo.get_by_id(int(user_id_str))
-        if not user or not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Pengguna tidak aktif atau tidak ditemukan.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        return user
+    user = await repo.get_by_id(int(user_id_str))
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Pengguna tidak aktif atau tidak ditemukan.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
 
 
 def require_admin(
