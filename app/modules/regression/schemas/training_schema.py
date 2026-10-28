@@ -22,6 +22,10 @@ class TrainModelResult(BaseModel):
     rmse: float
     mae: float
     r2: float
+    f_statistic: Optional[float] = None
+    f_table: Optional[float] = None
+    p_value: Optional[float] = None
+    is_significant: Optional[bool] = None
     chart_data: List[RegressionPoint]
     total_samples: int
 
@@ -34,5 +38,9 @@ class TestModelResult(BaseModel):
     rmse: float
     mae: float
     r2: float
+    f_statistic: Optional[float] = None
+    f_table: Optional[float] = None
+    p_value: Optional[float] = None
+    is_significant: Optional[bool] = None
     chart_data: List[RegressionPoint]
     total_samples: int

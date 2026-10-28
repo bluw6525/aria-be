@@ -19,6 +19,10 @@ class TrainedModelBase(BaseModel):
     train_rmse: float = Field(..., description="RMSE pada data latih")
     train_mae: float = Field(..., description="MAE pada data latih")
     train_r2: float = Field(..., description="R^2 (%) pada data latih")
+    f_statistic: Optional[float] = Field(None, description="Nilai F-Hitung (ANOVA Regresi)")
+    f_table: Optional[float] = Field(None, description="Nilai F-Tabel kritis (alpha=0.05)")
+    p_value: Optional[float] = Field(None, description="Nilai p-value uji signifikansi F")
+    is_significant: Optional[bool] = Field(False, description="Apakah model signifikan secara statistik (F_hitung > F_tabel)")
 
     @model_validator(mode="after")
     def sync_coefficients(self) -> "TrainedModelBase":

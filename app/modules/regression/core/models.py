@@ -81,6 +81,12 @@ class MCCVIterationModel(Base):
     train_mae = Column(Float, nullable=True)
     train_r2 = Column(Float, nullable=True)
 
+    # 5b. Uji Signifikansi F (ANOVA Regresi)
+    f_statistic = Column(Float, nullable=True)
+    f_table = Column(Float, nullable=True)
+    p_value = Column(Float, nullable=True)
+    is_significant = Column(Boolean, default=False, nullable=True)
+
     # 6. Timestamp
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=func.now())
 
@@ -114,6 +120,12 @@ class TrainedModel(Base):
     train_rmse = Column(Float, nullable=False)
     train_mae = Column(Float, nullable=False)
     train_r2 = Column(Float, nullable=False)
+
+    # Uji Signifikansi F (ANOVA Regresi)
+    f_statistic = Column(Float, nullable=True)
+    f_table = Column(Float, nullable=True)
+    p_value = Column(Float, nullable=True)
+    is_significant = Column(Boolean, default=False, nullable=True)
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=func.now())
 

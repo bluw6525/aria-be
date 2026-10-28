@@ -7,14 +7,13 @@ import random
 from typing import Callable, List, Optional, Union
 import numpy as np
 
-from app.modules.regression.algorithms.ols_estimator import OLSEstimator
-from app.modules.regression.algorithms.s_estimator import SEstimator
-from app.modules.regression.algorithms.m_estimator import MEstimator
-from app.modules.regression.algorithms.mm_estimator import MMEstimator
+
+
 from app.modules.regression.core.metrics import (
     calculate_rmse,
     calculate_mae,
     calculate_r2,
+    calculate_f_significance,
 )
 from app.modules.regression.core.parser import parse_raw_seeds
 from app.modules.regression.core.split import split_data
@@ -112,6 +111,11 @@ def run_monte_carlo_cv(
         Objek berisi daftar seluruh record evaluasi iteratif, tabel rangkuman agregat statistik,
         dan daftar seeds yang digunakan.
     """
+    from app.modules.regression.algorithms.ols_estimator import OLSEstimator
+    from app.modules.regression.algorithms.s_estimator import SEstimator
+    from app.modules.regression.algorithms.m_estimator import MEstimator
+    from app.modules.regression.algorithms.mm_estimator import MMEstimator
+
     seeds = resolve_seeds(seeds, n_splits)
 
     X = np.asarray(X, dtype=float)
@@ -125,7 +129,8 @@ def run_monte_carlo_cv(
     summary_stats = {
         name: {
             "test_r2": [], "test_rmse": [], "test_mae": [],
-            "train_r2": [], "train_rmse": [], "train_mae": []
+            "train_r2": [], "train_rmse": [], "train_mae": [],
+            "f_stat": [], "f_table": [], "is_sig": []
         }
         for name in estimator_types
     }
@@ -218,6 +223,13 @@ def run_monte_carlo_cv(
             else:
                 intercept_val = None
 
+            f_sig = calculate_f_significance(
+                X=X_test,
+                y=y_test,
+                intercept=intercept_val if intercept_val is not None else 0.0,
+                coefs=raw_coefs,
+            )
+
             record = MCCVIterationResult(
                 estimator_type=est_name,
                 random_state=seed,
@@ -235,7 +247,16 @@ def run_monte_carlo_cv(
                 train_rmse=tr_rmse,
                 train_mae=tr_mae,
                 train_r2=tr_r2,
+                f_statistic=f_sig["f_statistic"],
+                f_table=f_sig["f_table"],
+                p_value=f_sig["p_value"],
+                is_significant=f_sig["is_significant"],
             )
+            # Simpan metrik ke kolektor statistik
+            summary_stats[est_name]["f_stat"].append(f_sig["f_statistic"])
+            summary_stats[est_name]["f_table"].append(f_sig["f_table"])
+            summary_stats[est_name]["is_sig"].append(1.0 if f_sig["is_significant"] else 0.0)
+
             records.append(record)
 
         if progress_callback:
@@ -256,6 +277,12 @@ def run_monte_carlo_cv(
         tr_rmse_std = float(np.std(summary_stats[est_name]["train_rmse"]))
         tr_mae_mean = float(np.mean(summary_stats[est_name]["train_mae"]))
         tr_mae_std = float(np.std(summary_stats[est_name]["train_mae"]))
+
+        f_mean = float(np.mean(summary_stats[est_name]["f_stat"])) if summary_stats[est_name]["f_stat"] else 0.0
+        f_std = float(np.std(summary_stats[est_name]["f_stat"])) if summary_stats[est_name]["f_stat"] else 0.0
+        f_tab = float(np.mean(summary_stats[est_name]["f_table"])) if summary_stats[est_name]["f_table"] else 0.0
+        sig_rate = float(np.mean(summary_stats[est_name]["is_sig"]) * 100) if summary_stats[est_name]["is_sig"] else 0.0
+        is_sig_overall = bool(f_mean > f_tab)
 
         summary_rows.append(
             BenchmarkSummaryRow(
@@ -278,6 +305,11 @@ def run_monte_carlo_cv(
                 train_mae_mean=round(tr_mae_mean, 4),
                 train_mae_std=round(tr_mae_std, 4),
                 train_mae_display=f"{tr_mae_mean:.4f} (+/- {tr_mae_std:.4f})",
+                f_statistic_mean=round(f_mean, 4),
+                f_statistic_display=f"{f_mean:.2f} (+/- {f_std:.2f})",
+                f_table=round(f_tab, 4),
+                is_significant=is_sig_overall,
+                significance_rate=round(sig_rate, 2),
             )
         )
 

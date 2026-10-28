@@ -27,6 +27,10 @@ class MCCVIterationResult(BaseModel):
     train_rmse: float
     train_mae: float
     train_r2: float
+    f_statistic: Optional[float] = None
+    f_table: Optional[float] = None
+    p_value: Optional[float] = None
+    is_significant: Optional[bool] = None
 
 
 class BenchmarkSummaryRow(BaseModel):
@@ -52,6 +56,11 @@ class BenchmarkSummaryRow(BaseModel):
     train_mae_mean: float
     train_mae_std: float
     train_mae_display: str
+    f_statistic_mean: Optional[float] = None
+    f_statistic_display: Optional[str] = None
+    f_table: Optional[float] = None
+    is_significant: Optional[bool] = None
+    significance_rate: Optional[float] = None
 
 
 class MCCVBenchmarkResult(BaseModel):
@@ -93,6 +102,10 @@ class MCCVIterationResponse(BaseModel):
     train_rmse: Optional[float] = None
     train_mae: Optional[float] = None
     train_r2: Optional[float] = None
+    f_statistic: Optional[float] = None
+    f_table: Optional[float] = None
+    p_value: Optional[float] = None
+    is_significant: Optional[bool] = None
     created_at: Optional[Union[datetime, str]] = None
 
     model_config = ConfigDict(from_attributes=True)

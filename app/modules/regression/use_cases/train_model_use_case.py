@@ -15,6 +15,7 @@ from app.modules.regression.core.metrics import (
     calculate_rmse,
     calculate_mae,
     calculate_r2,
+    calculate_f_significance,
 )
 from app.modules.regression.schemas import (
     TrainModelResult,
@@ -100,6 +101,13 @@ class TrainModelUseCase:
             for i in range(len(y))
         ]
 
+        f_sig = calculate_f_significance(
+            X=X,
+            y=y,
+            intercept=intercept_val,
+            coefs=[coef_co, coef_no2],
+        )
+
         return TrainModelResult(
             estimator_type=resolved_type,
             equation=equation,
@@ -110,6 +118,10 @@ class TrainModelUseCase:
             rmse=rmse,
             mae=mae,
             r2=r2,
+            f_statistic=f_sig["f_statistic"],
+            f_table=f_sig["f_table"],
+            p_value=f_sig["p_value"],
+            is_significant=f_sig["is_significant"],
             chart_data=chart_data,
             total_samples=len(y),
         )
