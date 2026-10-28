@@ -72,13 +72,24 @@ class ModelUseCase:
         if not iteration:
             raise ValueError(f"Iterasi MCCV dengan ID {payload.iteration_id} tidak ditemukan.")
 
-        # Buat data TrainedModel dari parameter iterasi terpilih
+        # Buat data TrainedModel dari parameter iterasi terpilih dengan koefisien terstandarisasi
+        coefs = iteration.coefficients or {}
+        val_co = float(coefs.get("CO", 0.0))
+        val_no2 = float(coefs.get("NO2", 0.0))
+        if val_co == 0.0 and len(coefs) >= 1:
+            val_co = float(list(coefs.values())[0])
+        if val_no2 == 0.0 and len(coefs) >= 2:
+            val_no2 = float(list(coefs.values())[1])
+
         model_data = {
             "name": payload.model_name,
             "estimator_type": iteration.estimator_type,
             "is_default": payload.is_default,
             "intercept": iteration.intercept if iteration.intercept is not None else 0.0,
-            "coefficients": iteration.coefficients or {},
+            "coefficients": {
+                "CO": val_co,
+                "NO2": val_no2,
+            },
             "scale": iteration.scale,
             "train_rmse": iteration.train_rmse or iteration.test_rmse,
             "train_mae": iteration.train_mae or iteration.test_mae,

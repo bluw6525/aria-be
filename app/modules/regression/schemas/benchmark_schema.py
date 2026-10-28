@@ -2,7 +2,8 @@
 Schema Pydantic untuk Evaluasi Validasi Silang Monte Carlo (Benchmark Regresi).
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 
@@ -71,7 +72,7 @@ class BenchmarkSessionResponse(BaseModel):
     total_samples: Optional[int] = None
     fit_intercept: bool
     summary_metrics: Optional[List[Dict]] = None
-    created_at: Optional[str] = None
+    created_at: Optional[Union[datetime, str]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -92,7 +93,7 @@ class MCCVIterationResponse(BaseModel):
     train_rmse: Optional[float] = None
     train_mae: Optional[float] = None
     train_r2: Optional[float] = None
-    created_at: Optional[str] = None
+    created_at: Optional[Union[datetime, str]] = None
 
     model_config = ConfigDict(from_attributes=True)
 

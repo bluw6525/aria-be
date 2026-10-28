@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, String
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, String, func
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -28,7 +28,7 @@ class BenchmarkSession(Base):
     summary_metrics = Column(JSON, nullable=True)
 
     # 4. Timestamp
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=func.now())
 
     # Relasi 1 : N ke iterasi per seed & estimator
     iterations = relationship(
@@ -82,7 +82,7 @@ class MCCVIterationModel(Base):
     train_r2 = Column(Float, nullable=True)
 
     # 6. Timestamp
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=func.now())
 
     session = relationship("BenchmarkSession", back_populates="iterations")
 
@@ -115,7 +115,7 @@ class TrainedModel(Base):
     train_mae = Column(Float, nullable=False)
     train_r2 = Column(Float, nullable=False)
 
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=func.now())
 
     @property
     def coef_co(self) -> float:

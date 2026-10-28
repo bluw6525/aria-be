@@ -193,17 +193,30 @@ def run_monte_carlo_cv(
             summary_stats[est_name]["train_rmse"].append(tr_rmse)
             summary_stats[est_name]["train_mae"].append(tr_mae)
 
-            # Format intercept dan koefisien
+            # Format intercept dan koefisien standar {"CO": ..., "NO2": ...}
+            raw_coefs = model.coef_ if fit_intercept else model.params_
+            val_co = 0.0
+            val_no2 = 0.0
+            for idx, col in enumerate(feature_cols):
+                c_low = str(col).lower()
+                if "co" in c_low and "no2" not in c_low and "score" not in c_low:
+                    val_co = float(raw_coefs[idx])
+                elif "no2" in c_low:
+                    val_no2 = float(raw_coefs[idx])
+            if val_co == 0.0 and len(raw_coefs) >= 1:
+                val_co = float(raw_coefs[0])
+            if val_no2 == 0.0 and len(raw_coefs) >= 2:
+                val_no2 = float(raw_coefs[1])
+
+            coef_dict = {
+                "CO": val_co,
+                "NO2": val_no2,
+            }
+
             if fit_intercept:
                 intercept_val = float(model.intercept_) if hasattr(model, "intercept_") and model.intercept_ is not None else None
-                coef_dict = {
-                    col: float(val) for col, val in zip(feature_cols, model.coef_)
-                }
             else:
                 intercept_val = None
-                coef_dict = {
-                    col: float(val) for col, val in zip(feature_cols, model.params_)
-                }
 
             record = MCCVIterationResult(
                 estimator_type=est_name,

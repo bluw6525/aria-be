@@ -129,8 +129,11 @@ class BatchEstimateUseCase:
         summary_rows = benchmark_result.summary_rows
 
         # 3. Transformasi record iterasi ke entitas MCCVIterationModel menggunakan model_dump
+        allowed_columns = {c.name for c in MCCVIterationModel.__table__.columns}
         orm_records = [
-            MCCVIterationModel(**rec.model_dump())
+            MCCVIterationModel(
+                **{k: v for k, v in rec.model_dump().items() if k in allowed_columns}
+            )
             for rec in benchmark_result.records
         ]
 
