@@ -1,5 +1,5 @@
 """
-CLI Command untuk menjalankan Benchmark Monte Carlo Cross-Validation (OLS, M, S, MM k=4.685, MM k=1.547).
+CLI Command untuk menjalankan Benchmark Monte Carlo Cross-Validation (OLS, M, S, MM).
 Memanggil BatchEstimateUseCase secara terstruktur, menyimpan sesi ke benchmark_sessions & mccv_iterations,
 serta mengekspor laporan ke CSV.
 """
@@ -18,24 +18,16 @@ if str(PROJECT_ROOT) not in sys.path:
 from app.core.database import AsyncSessionLocal
 from app.modules.regression.repositories import BenchmarkSessionRepository
 from app.modules.regression.use_cases import BatchEstimateUseCase
-from commands.seeds import (
-    RANDOM_SEED_4,
-    RANDOM_SEED_3,
-    RANDOM_SEED_2,
-    RANDOM_SEED_1,
-    BALANCED_200_SEEDS,
-)
-
 
 async def main():
     parser = argparse.ArgumentParser(
-        description="Jalankan benchmark evaluasi Monte Carlo Cross-Validation pada 5 penaksir regresi (OLS, M, S, MM k=4.685, MM k=1.547)."
+        description="Jalankan benchmark evaluasi Monte Carlo Cross-Validation pada 4 penaksir regresi (OLS, M, S, MM)."
     )
     parser.add_argument(
         "--file",
         "-f",
         type=str,
-        default="Selatan_New.xlsx",
+        default="Selatan_New2.xlsx",
         help="Path ke berkas dataset Excel atau CSV",
     )
     parser.add_argument(
@@ -98,7 +90,7 @@ async def main():
 
         result = await use_case.batch_estimate(
             file_path=args.file,
-            seeds=None,
+            seeds=[],
             n_splits=args.n_seeds,
             session_name=args.session_name,
             test_size=args.test_size,

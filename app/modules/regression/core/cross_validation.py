@@ -119,7 +119,7 @@ def run_monte_carlo_cv(
     total_samples = len(y)
 
     if estimator_types is None:
-        estimator_types = ["OLS", "M", "S", "MM (k=4.685)", "MM (k=1.547)"]
+        estimator_types = ["OLS", "M", "S", "MM"]
 
     records: List[MCCVIterationResult] = []
     summary_stats = {
@@ -158,15 +158,8 @@ def run_monte_carlo_cv(
                 scale_val = float(model.scale_) if model.scale_ is not None else None
                 n_iter = int(model.n_iter_)
                 is_converged = bool(model.converged_)
-            elif est_name in ("MM (k=4.685)", "MM_4.685", "MM", "MM-High", "MM_High"):
-                model = MMEstimator(fit_intercept=fit_intercept, efficiency="high")
-                model.fit(X_train, y_train)
-                y_pred_train = model.predict(X_train)
-                scale_val = float(model.scale_s_) if model.scale_s_ is not None else None
-                n_iter = int(model.n_iter_)
-                is_converged = bool(model.converged_)
-            elif est_name in ("MM (k=1.547)", "MM_1.547", "MM-Low", "MM_Low"):
-                model = MMEstimator(fit_intercept=fit_intercept, efficiency="low")
+            elif est_name in ("MM", "MM (k=1.547)", "MM_1.547"):
+                model = MMEstimator(fit_intercept=fit_intercept)
                 model.fit(X_train, y_train)
                 y_pred_train = model.predict(X_train)
                 scale_val = float(model.scale_s_) if model.scale_s_ is not None else None

@@ -127,7 +127,7 @@ async def detect_outliers_endpoint(
 @router.post("/train", response_model=TrainModelResult)
 async def train_model_endpoint(
     file: UploadFile = File(..., description="Berkas data latih (.xlsx, .xls, .csv)"),
-    estimator_type: str = Form("MM", description="Tipe estimator: MM, MM-Low, MM-High, M, S, atau OLS"),
+    estimator_type: str = Form("MM", description="Tipe estimator: MM, M, S, atau OLS"),
     fit_intercept: bool = Form(True),
     admin: User = Depends(require_admin),
     usecase: TrainModelUseCase = Injected(TrainModelUseCase)

@@ -52,7 +52,7 @@ def weight_tukey(u, k=4.685):
     Digunakan pada:
     - Estimasi-M: k = 4.685 (efisiensi 95% pada distribusi normal)
     - Estimasi-S : k = 1.547 (pada iterasi awal WLS)
-    - Estimasi-MM: k = 4.685 (pada tahapan pembaruan koefisien WLS)
+    - Estimasi-MM: k = 1.547 (pada tahapan pembaruan koefisien WLS)
 
     Parameters:
     -----------

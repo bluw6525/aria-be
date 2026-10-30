@@ -46,12 +46,9 @@ class TrainModelUseCase:
 
         raw_type = estimator_type.lower().strip()
 
-        if raw_type in ("mm", "mm-high", "mm_high", "mm-4.685", "mm_4.685", "mm-k4.685"):
-            model = MMEstimator(fit_intercept=fit_intercept, efficiency="high")
-            resolved_type = "MM (k=4.685)"
-        elif raw_type in ("mm-low", "mm_low", "mm-1.547", "mm_1.547", "mm-k1.547"):
-            model = MMEstimator(fit_intercept=fit_intercept, efficiency="low")
-            resolved_type = "MM (k=1.547)"
+        if raw_type in ("mm", "mm-1.547", "mm_1.547", "mm-k1.547", "mm (k=1.547)"):
+            model = MMEstimator(fit_intercept=fit_intercept)
+            resolved_type = "MM"
         elif raw_type == "m":
             model = MEstimator(fit_intercept=fit_intercept)
             resolved_type = "M"
@@ -63,7 +60,7 @@ class TrainModelUseCase:
             resolved_type = "OLS"
         else:
             raise ValueError(
-                f"Estimator '{estimator_type}' tidak didukung. Pilih MM (k=4.685), MM (k=1.547), M, S, atau OLS."
+                f"Estimator '{estimator_type}' tidak didukung. Pilih MM, M, S, atau OLS."
             )
 
         await asyncio.to_thread(model.fit, X, y)

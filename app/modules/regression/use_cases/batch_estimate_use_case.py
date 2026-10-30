@@ -63,7 +63,7 @@ class BatchEstimateUseCase:
         # Siapkan estimator_types (parse jika string atau None)
         parsed_estimators = parse_raw_estimators(estimator_types)
         if not parsed_estimators:
-            parsed_estimators = ["OLS", "M", "S", "MM (k=4.685)", "MM (k=1.547)"]
+            parsed_estimators = ["OLS", "M", "S", "MM"]
         estimator_types = parsed_estimators
 
         if isinstance(file_path, (str, Path)):
@@ -98,7 +98,7 @@ class BatchEstimateUseCase:
 
         if verbose:
             print("=" * 76)
-            print("   BENCHMARK RUNS (OLS, M, S, MM k=4.685, MM k=1.547) & POSTGRESQL   ")
+            print("   BENCHMARK RUNS (OLS, M, S, MM) & POSTGRESQL   ")
             print("=" * 76)
             print(f"Dataset          : {path_obj.name} ({total_samples} sampel)")
             print(f"Jumlah Seed      : {len(seeds_list)} random states")
