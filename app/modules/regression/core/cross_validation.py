@@ -140,6 +140,7 @@ def run_monte_carlo_cv(
         X_train, X_test, y_train, y_test = split_data(
             X, y, test_size=test_size, random_state=seed
         )
+        cached_s_model = None
 
         for est_name in estimator_types:
             if est_name == "OLS":
@@ -159,20 +160,21 @@ def run_monte_carlo_cv(
             elif est_name == "S":
                 model = SEstimator(fit_intercept=fit_intercept)
                 model.fit(X_train, y_train)
+                cached_s_model = model
                 y_pred_train = model.predict(X_train)
                 scale_val = float(model.scale_) if model.scale_ is not None else None
                 n_iter = int(model.n_iter_)
                 is_converged = bool(model.converged_)
             elif est_name in ("MM (k=4.685)", "MM_4.685", "MM", "MM-High", "MM_High"):
                 model = MMEstimator(fit_intercept=fit_intercept, efficiency="high")
-                model.fit(X_train, y_train)
+                model.fit(X_train, y_train, initial_s_estimator=cached_s_model)
                 y_pred_train = model.predict(X_train)
                 scale_val = float(model.scale_s_) if model.scale_s_ is not None else None
                 n_iter = int(model.n_iter_)
                 is_converged = bool(model.converged_)
             elif est_name in ("MM (k=1.547)", "MM_1.547", "MM-Low", "MM_Low"):
                 model = MMEstimator(fit_intercept=fit_intercept, efficiency="low")
-                model.fit(X_train, y_train)
+                model.fit(X_train, y_train, initial_s_estimator=cached_s_model)
                 y_pred_train = model.predict(X_train)
                 scale_val = float(model.scale_s_) if model.scale_s_ is not None else None
                 n_iter = int(model.n_iter_)

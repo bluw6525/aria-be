@@ -76,11 +76,12 @@ def calculate_r2(y_true, y_pred) -> float:
     y_mean = np.mean(y_true)
     ss_res = np.sum((y_true - y_pred) ** 2)
     ss_reg = np.sum((y_pred - y_mean) ** 2)
-    ss_tot = ss_res + ss_reg
+    # ss_tot = ss_res + ss_reg
+    ss_tot = np.sum((y_true - y_mean) ** 2)
 
     if ss_tot == 0.0:
         return 0.0
-    return float(ss_reg/ss_tot)
+    return float(1 -(ss_res/ss_tot))
 
 
 def calculate_f_significance(

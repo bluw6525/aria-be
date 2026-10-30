@@ -5,7 +5,7 @@ Menangani persistensi sesi benchmark Monte Carlo Cross-Validation dan riwayat it
 
 from typing import List, Optional, Tuple
 from injector import inject
-from sqlalchemy import select, delete, func
+from sqlalchemy import select, delete, func, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.regression.core.models import BenchmarkSession, MCCVIterationModel
@@ -31,10 +31,16 @@ class BenchmarkSessionRepository:
         self.db.add(session)
         await self.db.flush()  # Dapatkan session.id yang ter-generate
 
-        for item in iterations:
-            item.session_id = session.id
-        
-        self.db.add_all(iterations)
+        if iterations:
+            col_names = [c.name for c in MCCVIterationModel.__table__.columns if c.name != "id"]
+            rows = []
+            for item in iterations:
+                item.session_id = session.id
+                rows.append({col: getattr(item, col) for col in col_names})
+            chunk_size = 2000
+            for i in range(0, len(rows), chunk_size):
+                await self.db.execute(insert(MCCVIterationModel), rows[i : i + chunk_size])
+
         await self.db.commit()
         await self.db.refresh(session)
         return session

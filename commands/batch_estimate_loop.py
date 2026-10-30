@@ -23,7 +23,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from app.core.database import AsyncSessionLocal
 from app.modules.regression.repositories import BenchmarkSessionRepository
 from app.modules.regression.use_cases import BatchEstimateUseCase
-import commands.seeds_optimized as seeds_opt
+import commands.seed_percobaan as seeds_opt
 
 # Dataset default jika tidak ditentukan
 DEFAULT_DATASETS = [
@@ -167,12 +167,12 @@ async def main():
                 # Ambil 200 seed optimal khusus dataset & test_size ini
                 try:
                     seeds = resolve_optimized_seeds(file_path.name, ts)
-                    print(f"    Seed source: commands/seeds_optimized.py ({len(seeds)} seeds)")
+                    print(f"    Seed source: commands/seed_percobaan.py ({len(seeds)} seeds)")
                 except Exception as e:
                     print(f"    [ERROR] Gagal memuat seed optimal: {e}")
                     continue
 
-                session_name = f"Benchmark {file_path.stem} (Test {test_pct}%) - Optimized"
+                session_name = f"Benchmark {file_path.stem} (Test {test_pct}%) - {len(seeds)} Seeds"
 
                 result = await use_case.batch_estimate(
                     file_path=file_path,
