@@ -106,6 +106,55 @@ def style_residual_ax(ax, title: str | None = None):
         ax.set_title(title, fontsize=12, fontweight="bold", pad=8)
 
 
+def draw_residual_boxplot(
+    ax: plt.Axes,
+    residual_data: list[np.ndarray],
+    labels: list[str],
+    colors: list[str],
+    title: str,
+):
+    """Menggambar boxplot residual per metode dengan penanda Mean dan Median."""
+    bp = ax.boxplot(
+        residual_data,
+        tick_labels=labels,
+        patch_artist=True,
+        showmeans=True,
+        showfliers=True,
+        widths=0.52,
+        medianprops={"color": "#0f172a", "linewidth": 1.8},
+        meanprops={
+            "marker": "D",
+            "markeredgecolor": "#ffffff",
+            "markerfacecolor": "#0f172a",
+            "markersize": 5.0,
+        },
+        flierprops={
+            "marker": "o",
+            "markerfacecolor": "#94a3b8",
+            "markeredgecolor": "#64748b",
+            "markersize": 3.5,
+            "alpha": 0.6,
+        },
+        whiskerprops={"color": "#475569", "linewidth": 1.2},
+        capprops={"color": "#475569", "linewidth": 1.2},
+    )
+
+    for patch, color in zip(bp["boxes"], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.75)
+        patch.set_edgecolor("#1e293b")
+        patch.set_linewidth(1.1)
+
+    ax.axhline(0, color="#64748b", linestyle="--", linewidth=1.0, alpha=0.8)
+    ax.set_title(title, fontsize=11, fontweight="bold", color="#0f172a", pad=8)
+    ax.set_ylabel("Residual/Error", fontsize=10, fontweight="medium", color="#0f172a")
+    ax.tick_params(axis="both", labelsize=9.5, colors="#334155")
+    ax.grid(axis="y", linestyle="--", alpha=0.5, color="#cbd5e1")
+    ax.set_axisbelow(True)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+
 async def process_residual_analysis(
     file_path: str = "Selatan_New2.xlsx",
     ratio: str = "80:20",
@@ -122,6 +171,9 @@ async def process_residual_analysis(
     test_size = cfg["test_size"]
     seed = get_split_seed(excel_path, ratio)
     ratio_label = cfg["name"]
+
+    train_pct = int(round((1.0 - test_size) * 100))
+    test_pct = int(round(test_size * 100))
 
     region_title = get_region_title(excel_path)
     region_slug = get_region_slug(excel_path)
@@ -297,11 +349,61 @@ async def process_residual_analysis(
     plt.close(fig_grid)
 
     print(f"-> Plot gabungan tersimpan: {combined_plot_path}")
+
+    # =========================================================================
+    # 7. Box Plot Residual (Data Latih vs Data Uji per Metode)
+    # =========================================================================
+    from matplotlib.lines import Line2D
+
+    fig_bp, axes_bp = plt.subplots(1, 2, figsize=(13, 5.5), dpi=220)
+    fig_bp.suptitle(
+        f"Perbandingan Box Plot Residual per Metode Regresi\n"
+        f"{region_title} ({ratio})",
+        fontsize=13.5,
+        fontweight="bold",
+        color="#0f172a",
+        y=0.98,
+    )
+
+    bp_labels = [label for _, label, _, _ in ESTIMATORS]
+    bp_colors = [color for _, _, color, _ in ESTIMATORS]
+    train_res_list = [train_results[key]["residual"] for key, _, _, _ in ESTIMATORS]
+    test_res_list = [test_results[key]["residual"] for key, _, _, _ in ESTIMATORS]
+
+    draw_residual_boxplot(
+        axes_bp[0],
+        train_res_list,
+        bp_labels,
+        bp_colors,
+        f"Data Latih ({train_pct}% | {n_train} Sampel)",
+    )
+    draw_residual_boxplot(
+        axes_bp[1],
+        test_res_list,
+        bp_labels,
+        bp_colors,
+        f"Data Uji ({test_pct}% | {n_test} Sampel)",
+    )
+
+    legend_elements = [
+        Line2D([0], [0], color="#0f172a", lw=1.8, label="Median"),
+        Line2D([0], [0], marker="D", color="w", markerfacecolor="#0f172a", markersize=6, label="Mean"),
+    ]
+    axes_bp[0].legend(handles=legend_elements, loc="lower left", frameon=True, facecolor="white", edgecolor="#cbd5e1", fontsize=8.5)
+    axes_bp[1].legend(handles=legend_elements, loc="lower left", frameon=True, facecolor="white", edgecolor="#cbd5e1", fontsize=8.5)
+
+    plt.tight_layout(rect=[0.01, 0.02, 0.99, 0.93])
+    boxplot_out_path = out_dir / f"boxplot_residual_{region_slug}_{ratio_label}.png"
+    fig_bp.savefig(boxplot_out_path, bbox_inches="tight", facecolor="white")
+    plt.close(fig_bp)
+
+    print(f"-> Box plot residual tersimpan: {boxplot_out_path}")
     print("=" * 72)
 
     return {
         "excel_path": excel_out_path,
         "combined_plot": combined_plot_path,
+        "boxplot": boxplot_out_path,
     }
 
 
