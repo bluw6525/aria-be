@@ -1,8 +1,11 @@
 from app.modules.regression.schemas.model_schema import (
+    PublicModelBase,
+    PublicModelCreate,
+    PublicModelResponse,
+    PromoteModelRequest,
     TrainedModelBase,
     TrainedModelCreate,
     TrainedModelResponse,
-    PromoteModelRequest,
 )
 from app.modules.regression.schemas.outlier_schema import (
     OutlierCategorySummary,
@@ -20,22 +23,31 @@ from app.modules.regression.schemas.estimate_schema import (
     BatchEstimateSummary,
     BatchEstimateResponse,
 )
-from app.modules.regression.schemas.benchmark_schema import (
+from app.modules.regression.schemas.batch_schema import (
+    BatchIterationResult,
+    BatchSummaryRow,
+    BatchBenchmarkResult,
+    BatchSessionResponse,
+    BatchIterationResponse,
+    PaginatedIterationsResponse,
+    BatchRunResponse,
     MCCVIterationResult,
     BenchmarkSummaryRow,
     MCCVBenchmarkResult,
     BenchmarkSessionResponse,
     MCCVIterationResponse,
-    PaginatedIterationsResponse,
     BenchmarkRunResponse,
 )
 
 __all__ = [
     # Model Schemas
+    "PublicModelBase",
+    "PublicModelCreate",
+    "PublicModelResponse",
+    "PromoteModelRequest",
     "TrainedModelBase",
     "TrainedModelCreate",
     "TrainedModelResponse",
-    "PromoteModelRequest",
     # Outlier Schemas
     "OutlierCategorySummary",
     "OutlierDetectionResponse",
@@ -49,9 +61,18 @@ __all__ = [
     "BatchEstimatePoint",
     "BatchEstimateSummary",
     "BatchEstimateResponse",
-    # Benchmark Schemas
+    # Benchmark / Batch Schemas
+    "BatchIterationResult",
+    "BatchSummaryRow",
+    "BatchBenchmarkResult",
+    "BatchSessionResponse",
+    "BatchIterationResponse",
+    "PaginatedIterationsResponse",
+    "BatchRunResponse",
     "MCCVIterationResult",
     "BenchmarkSummaryRow",
     "MCCVBenchmarkResult",
+    "BenchmarkSessionResponse",
+    "MCCVIterationResponse",
+    "BenchmarkRunResponse",
 ]
-

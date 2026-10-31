@@ -18,6 +18,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication & Profile"])
 
 
 @router.post("/login", response_model=TokenResponse)
+@router.post("/tokens", response_model=TokenResponse, include_in_schema=False)
 async def login_endpoint(
     payload: LoginRequest,
     usecase: AuthUseCase = Injected(AuthUseCase),
@@ -37,6 +38,7 @@ async def login_endpoint(
 
 
 @router.get("/me", response_model=UserResponse)
+@router.get("/users/me", response_model=UserResponse, include_in_schema=False)
 def get_me_endpoint(
     current_user: User = Depends(get_current_user),
 ):

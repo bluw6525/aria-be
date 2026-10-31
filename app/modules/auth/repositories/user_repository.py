@@ -37,3 +37,10 @@ class UserRepository:
         await self.db.commit()
         await self.db.refresh(db_user)
         return db_user
+
+    async def update_password(self, user: User, hashed_password: str) -> User:
+        """Memperbarui kata sandi pengguna dan menyimpannya ke database."""
+        user.hashed_password = hashed_password
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user

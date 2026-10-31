@@ -14,7 +14,6 @@ from app.modules.regression.algorithms.ols_estimator import OLSEstimator
 from app.modules.regression.core.metrics import (
     calculate_rmse,
     calculate_mae,
-    calculate_r2,
 )
 from app.modules.regression.schemas import (
     TrainModelResult,
@@ -46,12 +45,9 @@ class TrainModelUseCase:
 
         raw_type = estimator_type.lower().strip()
 
-        if raw_type in ("mm", "mm-high", "mm_high", "mm-4.685", "mm_4.685", "mm-k4.685"):
-            model = MMEstimator(fit_intercept=fit_intercept, efficiency="high")
-            resolved_type = "MM (k=4.685)"
-        elif raw_type in ("mm-low", "mm_low", "mm-1.547", "mm_1.547", "mm-k1.547"):
-            model = MMEstimator(fit_intercept=fit_intercept, efficiency="low")
-            resolved_type = "MM (k=1.547)"
+        if raw_type in ("mm", "mm-estimator", "mm_estimator", "mm-high", "mm_high", "mm-low", "mm_low", "mm-1.547", "mm_1.547", "mm-k1.547", "mm-4.685"):
+            model = MMEstimator(k=1.547, fit_intercept=fit_intercept)
+            resolved_type = "MM"
         elif raw_type == "m":
             model = MEstimator(fit_intercept=fit_intercept)
             resolved_type = "M"
@@ -63,7 +59,7 @@ class TrainModelUseCase:
             resolved_type = "OLS"
         else:
             raise ValueError(
-                f"Estimator '{estimator_type}' tidak didukung. Pilih MM (k=4.685), MM (k=1.547), M, S, atau OLS."
+                f"Estimator '{estimator_type}' tidak didukung. Pilih MM, M, S, atau OLS."
             )
 
         await asyncio.to_thread(model.fit, X, y)
@@ -71,7 +67,6 @@ class TrainModelUseCase:
 
         rmse = round(calculate_rmse(y, y_pred), 4)
         mae = round(calculate_mae(y, y_pred), 4)
-        r2 = round(calculate_r2(y, y_pred), 4)
 
         intercept_val = float(model.intercept_) if fit_intercept and model.intercept_ is not None else 0.0
         coef_co = float(model.coef_[0])
@@ -96,6 +91,7 @@ class TrainModelUseCase:
                 index=i + 1,
                 actual=round(float(y[i]), 2),
                 predicted=round(float(y_pred[i]), 2),
+                residual=round(float(y[i] - y_pred[i]), 4),
             )
             for i in range(len(y))
         ]
@@ -109,7 +105,6 @@ class TrainModelUseCase:
             scale=scale_val,
             rmse=rmse,
             mae=mae,
-            r2=r2,
             chart_data=chart_data,
             total_samples=len(y),
         )

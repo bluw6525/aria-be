@@ -9,15 +9,14 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class LoginRequest(BaseModel):
     """Payload permintaan login."""
-    username: str = Field(..., min_length=3, max_length=50, description="Username akun")
-    password: str = Field(..., min_length=6, description="Password akun")
+    username: str = Field(..., min_length=1, max_length=50, description="Username akun")
+    password: str = Field(..., min_length=1, description="Password akun")
 
 
 class UserResponse(BaseModel):
     """Data profil pengguna publik."""
     id: int
     username: str
-    email: Optional[str] = None
     role: str
     is_active: bool
     created_at: Optional[datetime] = None
@@ -36,5 +35,4 @@ class UserCreate(BaseModel):
     """Payload pendaftaran pengguna baru / seeder."""
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=6)
-    email: Optional[str] = None
     role: str = Field("user", description="'admin' atau 'user'")

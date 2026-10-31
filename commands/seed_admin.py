@@ -19,7 +19,7 @@ from app.modules.auth.core.security import hash_password
 from app.modules.auth.repositories.user_repository import UserRepository
 
 
-async def seed_admin(username: str = "admin", password: str = "admin123", email: str = "admin@aria.id"):
+async def seed_admin(username: str = "admin", password: str = "admin123"):
     async with AsyncSessionLocal() as session:
         repo = UserRepository(db=session)
         existing = await repo.get_by_username(username)
@@ -35,7 +35,6 @@ async def seed_admin(username: str = "admin", password: str = "admin123", email:
 
         user_data = {
             "username": username,
-            "email": email,
             "hashed_password": hash_password(password),
             "role": "admin",
             "is_active": True,
@@ -52,10 +51,9 @@ def main():
     parser = argparse.ArgumentParser(description="Seed akun Administrator Aria")
     parser.add_argument("--username", "-u", default="admin", help="Username admin (default: admin)")
     parser.add_argument("--password", "-p", default="admin123", help="Password admin (default: admin123)")
-    parser.add_argument("--email", "-e", default="admin@aria.id", help="Email admin (default: admin@aria.id)")
     args = parser.parse_args()
 
-    asyncio.run(seed_admin(args.username, args.password, args.email))
+    asyncio.run(seed_admin(args.username, args.password))
 
 
 if __name__ == "__main__":

@@ -16,7 +16,6 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
-    email = Column(String(100), unique=True, index=True, nullable=True)
     hashed_password = Column(String(255), nullable=False)
     role = Column(String(20), default="user", index=True, nullable=False)  # "admin" | "user"
     is_active = Column(Boolean, default=True, nullable=False)

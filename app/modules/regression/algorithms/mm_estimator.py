@@ -17,29 +17,18 @@ class MMEstimator(BaseRegressionEstimator):
     4. Ambil nilai skala konvergen sigma_MM = sigma_sn (fixed scale).
     5. Hitung u_i = e_i / sigma_sn.
     6. Hitung nilai pembobot w_i:
-       w_i = [1 - (u_i / 4.685)^2]^2 jika |u_i| <= 4.685, 0 jika > 4.685.
+       w_i = [1 - (u_i / 1.547)^2]^2 jika |u_i| <= 1.547, 0 jika > 1.547.
     7. Hitung beta_MM menggunakan metode WLS dengan pembobot w_i:
        beta = (X' W X)^(-1) X' W Y.
     8. Ulangi langkah 5-7 hingga diperoleh nilai beta_MM yang konvergen.
     9. Mengembalikan hanya parameter regresi saja.
     """
-    def __init__(self, k=4.685, max_iter=100, tol=1e-5, fit_intercept=True, efficiency="high", **kwargs):
+    def __init__(self, k=1.547, max_iter=100, tol=1e-5, fit_intercept=True, **kwargs):
         super().__init__(fit_intercept=fit_intercept)
         self.max_iter = int(max_iter)
         self.tol = float(tol)
+        self.k = float(k)
 
-        if efficiency is not None:
-            eff_str = str(efficiency).strip().lower()
-            if eff_str == "low":
-                self.k = 1.547
-            elif eff_str == "high":
-                self.k = 4.685 if k == 4.685 else float(k)
-            else:
-                self.k = float(k)
-        else:
-            self.k = float(k)
-
-        self.efficiency = efficiency
         self.scale_s_ = None  # Fixed scale dari Estimasi-S (sigma_sn)
         self.weights_ = None
         self.residuals_ = None
@@ -98,7 +87,7 @@ class MMEstimator(BaseRegressionEstimator):
             # Nilai u_i = e_i / sigma_sn
             u = residuals / fixed_scale
 
-            # Nilai pembobot w_i dengan k = 4.685
+            # Nilai pembobot w_i dengan k = 1.547
             weights = weight_tukey(u, k=self.k)
 
             self.iteration_history_.append({
@@ -147,7 +136,7 @@ class MMEstimator(BaseRegressionEstimator):
         return self.params_
 
 
-def mm_estimator(X, y, k=4.685, max_iter=100, tol=1e-5, fit_intercept=True, efficiency="high", initial_s_estimator=None, **kwargs):
+def mm_estimator(X, y, k=1.547, max_iter=100, tol=1e-5, fit_intercept=True, initial_s_estimator=None, **kwargs):
     """
     Fungsi penaksir Estimasi-MM yang hanya mengembalikan parameter regresi.
     """
@@ -156,7 +145,6 @@ def mm_estimator(X, y, k=4.685, max_iter=100, tol=1e-5, fit_intercept=True, effi
         max_iter=max_iter,
         tol=tol,
         fit_intercept=fit_intercept,
-        efficiency=efficiency,
         **kwargs
     )
     return estimator.fit(X, y, initial_s_estimator=initial_s_estimator)

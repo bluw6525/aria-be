@@ -1,4 +1,6 @@
 from app.modules.regression.core.cross_validation import (
+    BatchBenchmarkResult,
+    BatchIterationResult,
     MCCVBenchmarkResult,
     MCCVIterationResult,
     run_monte_carlo_cv,
@@ -13,25 +15,33 @@ from app.modules.regression.core.ispu import get_ispu_category
 from app.modules.regression.core.metrics import (
     calculate_rmse,
     calculate_mae,
-    calculate_r2,
 )
 from app.modules.regression.core.models import (
-    BenchmarkSession,
-    MCCVIterationModel,
-    TrainedModel,
+    BatchSession,
+    BatchIteration,
+    PublicModel,
 )
 from app.modules.regression.core.split import split_data
+
+# Aliases for backward compatibility
+BenchmarkSession = BatchSession
+MCCVIterationModel = BatchIteration
+TrainedModel = PublicModel
 
 __all__ = [
     "get_ispu_category",
     "calculate_rmse",
     "calculate_mae",
-    "calculate_r2",
+    "BatchSession",
+    "BatchIteration",
+    "PublicModel",
     "BenchmarkSession",
     "MCCVIterationModel",
     "TrainedModel",
     "split_data",
     "run_monte_carlo_cv",
+    "BatchIterationResult",
+    "BatchBenchmarkResult",
     "MCCVIterationResult",
     "MCCVBenchmarkResult",
     "match_column",

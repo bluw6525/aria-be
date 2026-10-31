@@ -1,17 +1,16 @@
 """
-Use Case untuk Pengujian Model Tersimpan (Testing Saved Model) Terhadap Data Baru.
+Use Case untuk Pengujian Model Publik Tersimpan (Testing Model) Terhadap Data Baru.
 """
 
 from typing import Optional
 from fastapi import UploadFile
 from injector import inject
 
-from app.modules.regression.repositories import TrainedModelRepository
+from app.modules.regression.repositories import PublicModelRepository
 from app.modules.regression.core.parser import parse_and_validate_file
 from app.modules.regression.core.metrics import (
     calculate_rmse,
     calculate_mae,
-    calculate_r2,
 )
 from app.modules.regression.schemas import (
     TestModelResult,
@@ -25,7 +24,7 @@ class TestModelUseCase:
     """
 
     @inject
-    def __init__(self, repository: TrainedModelRepository):
+    def __init__(self, repository: PublicModelRepository):
         self.repository = repository
 
     async def test_custom_model(
@@ -41,7 +40,9 @@ class TestModelUseCase:
         """
         Mengevaluasi performa koefisien regresi terhadap berkas data uji baru.
         """
-        X_test, y_test, feature_cols, target_col = await parse_and_validate_file(file, require_target=True)
+        X_test, y_test, feature_cols, target_col = await parse_and_validate_file(
+            file, require_target=True, min_samples=1
+        )
         if y_test is None:
             raise ValueError("Data uji harus memiliki kolom target O3 untuk menghitung evaluasi.")
 
@@ -49,7 +50,6 @@ class TestModelUseCase:
 
         rmse = round(calculate_rmse(y_test, y_pred), 4)
         mae = round(calculate_mae(y_test, y_pred), 4)
-        r2 = round(calculate_r2(y_test, y_pred), 4)
 
         sign_co = "+" if coef_co >= 0 else "-"
         sign_no2 = "+" if coef_no2 >= 0 else "-"
@@ -64,6 +64,7 @@ class TestModelUseCase:
                 index=i + 1,
                 actual=round(float(y_test[i]), 2),
                 predicted=round(float(y_pred[i]), 2),
+                residual=round(float(y_test[i] - y_pred[i]), 4),
             )
             for i in range(len(y_test))
         ]
@@ -75,7 +76,6 @@ class TestModelUseCase:
             equation=equation,
             rmse=rmse,
             mae=mae,
-            r2=r2,
             chart_data=chart_data,
             total_samples=len(y_test),
         )

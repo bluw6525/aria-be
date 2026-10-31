@@ -1,5 +1,5 @@
 """
-Schema Pydantic untuk Operasi Model Tersimpan (TrainedModel) dan Promosi Model.
+Schema Pydantic untuk Operasi Model Publik (PublicModel) dan Promosi Model.
 """
 
 from typing import Dict, Optional
@@ -7,10 +7,9 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
-class TrainedModelBase(BaseModel):
+class PublicModelBase(BaseModel):
     name: str = Field(..., description="Nama unik untuk model")
     estimator_type: str = Field(..., description="Tipe estimator: MM, M, S, atau OLS")
-    is_default: bool = Field(False, description="Apakah model ini model bawaan sistem")
     intercept: float = Field(0.0, description="Nilai konstanta beta_0")
     coefficients: Optional[Dict[str, float]] = Field(None, description="Koefisien variabel (JSON)")
     coef_co: Optional[float] = Field(None, description="Koefisien CO Sentinel-5P (beta_1)")
@@ -18,13 +17,11 @@ class TrainedModelBase(BaseModel):
     scale: Optional[float] = Field(None, description="Estimasi skala residual sigma")
     train_rmse: float = Field(..., description="RMSE pada data latih")
     train_mae: float = Field(..., description="MAE pada data latih")
-    train_r2: float = Field(..., description="R^2 (%) pada data latih")
 
     @model_validator(mode="after")
-    def sync_coefficients(self) -> "TrainedModelBase":
+    def sync_coefficients(self) -> "PublicModelBase":
         """
-        Sinkronisasi dua arah antara coefficients (JSON) dan coef_co / coef_no2
-        untuk menjamin 100% kompatibilitas dengan frontend dan sistem lama.
+        Sinkronisasi dua arah antara coefficients (JSON) dan coef_co / coef_no2.
         """
         if self.coefficients:
             if self.coef_co is None:
@@ -43,11 +40,11 @@ class TrainedModelBase(BaseModel):
         return self
 
 
-class TrainedModelCreate(TrainedModelBase):
+class PublicModelCreate(PublicModelBase):
     pass
 
 
-class TrainedModelResponse(TrainedModelBase):
+class PublicModelResponse(PublicModelBase):
     id: int
     created_at: Optional[datetime] = None
 
@@ -56,8 +53,13 @@ class TrainedModelResponse(TrainedModelBase):
 
 class PromoteModelRequest(BaseModel):
     """
-    Payload untuk mempromosikan model dari iterasi MCCV ke model definitif (TrainedModel).
+    Payload untuk mempromosikan model dari iterasi batch ke model publik definitif (PublicModel).
     """
-    iteration_id: int = Field(..., description="ID dari iterasi model (mccv_iterations) yang ingin dipromosikan")
+    iteration_id: int = Field(..., description="ID dari iterasi model (batch_iterations) yang ingin dipromosikan")
     model_name: str = Field(..., min_length=2, max_length=100, description="Nama unik model tersimpan")
-    is_default: bool = Field(False, description="Apakah model ini menjadi model default untuk inferensi")
+
+
+# Backward compatibility aliases
+TrainedModelBase = PublicModelBase
+TrainedModelCreate = PublicModelCreate
+TrainedModelResponse = PublicModelResponse

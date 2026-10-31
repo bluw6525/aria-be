@@ -10,6 +10,7 @@ class RegressionPoint(BaseModel):
     index: int
     actual: float
     predicted: float
+    residual: Optional[float] = None
 
 
 class TrainModelResult(BaseModel):
@@ -21,7 +22,6 @@ class TrainModelResult(BaseModel):
     scale: Optional[float] = None
     rmse: float
     mae: float
-    r2: float
     chart_data: List[RegressionPoint]
     total_samples: int
 
@@ -33,6 +33,5 @@ class TestModelResult(BaseModel):
     equation: str
     rmse: float
     mae: float
-    r2: float
     chart_data: List[RegressionPoint]
     total_samples: int

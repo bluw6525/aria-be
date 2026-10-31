@@ -125,10 +125,10 @@ def interpolate_natural_cubic_spline(series: pd.Series) -> pd.Series:
     valid_mask = ~missing_mask
     n_valid = int(valid_mask.sum())
     if n_valid < 2:
-        raise ValueError(
-            f"Jumlah data O3 SPKU valid hanya {n_valid} baris. "
-            "Minimal dibutuhkan 2 baris valid untuk interpolasi Natural Cubic Spline."
-        )
+        # Cubic Spline membutuhkan minimal 2 titik untuk interpolasi.
+        # Jika data valid < 2 titik, kembalikan series apa adanya tanpa error
+        # sehingga baris data yang valid tetap dapat diproses.
+        return series
 
     # Indeks baris integer untuk interpolasi
     x_valid = series.index[valid_mask].to_numpy(dtype=float)
@@ -150,6 +150,7 @@ async def parse_and_validate_file(
     file: Union[UploadFile, str, Path],
     require_target: bool = True,
     return_indices: bool = False,
+    min_samples: int = 5,
 ) -> Union[
     Tuple[np.ndarray, Optional[np.ndarray], List[str], str],
     Tuple[np.ndarray, Optional[np.ndarray], List[str], str, np.ndarray],
@@ -239,10 +240,11 @@ async def parse_and_validate_file(
             & np.isfinite(clean_df[target_col])
         ]
 
-        if len(clean_df) < 5:
+        if len(clean_df) < min_samples:
+            sample_label = "1 baris" if min_samples == 1 else f"{min_samples} baris"
             raise ValueError(
                 f"Jumlah baris data valid terlalu sedikit ({len(clean_df)} baris). "
-                f"Minimal 5 baris data yang memiliki O3 SPKU, NO2 satelit, dan CO satelit lengkap."
+                f"Minimal {sample_label} data yang memiliki O3 SPKU, NO2 satelit, dan CO satelit lengkap."
             )
 
         X = clean_df[feature_cols].to_numpy(dtype=float)

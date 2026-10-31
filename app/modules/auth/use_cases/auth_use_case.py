@@ -4,7 +4,9 @@ Use Case untuk alur proses Autentikasi Pengguna.
 
 from injector import inject
 
+from app.modules.auth.core.models import User
 from app.modules.auth.core.security import (
+    hash_password,
     verify_password,
     create_access_token,
 )
@@ -44,3 +46,18 @@ class AuthUseCase:
             token_type="bearer",
             user=UserResponse.model_validate(user),
         )
+
+    async def reset_password(self, username: str, new_password: str) -> User:
+        """
+        Logika bisnis untuk mereset kata sandi pengguna berdasarkan username.
+        Hanya digunakan untuk operasi internal / CLI (tidak disambungkan ke router publik).
+        """
+        if not new_password or len(new_password) < 6:
+            raise ValueError("Password minimal harus terdiri dari 6 karakter.")
+
+        user = await self.repository.get_by_username(username)
+        if not user:
+            raise ValueError(f"Pengguna dengan username '{username}' tidak ditemukan.")
+
+        hashed = hash_password(new_password)
+        return await self.repository.update_password(user, hashed)

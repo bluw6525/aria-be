@@ -36,8 +36,6 @@ class BatchEstimateSummary(BaseModel):
     avg_estimated: float
     min_estimated: float
     max_estimated: float
-    dominant_ispu_category: str
-    ispu_distribution: Dict[str, int]
 
 
 class BatchEstimateResponse(BaseModel):
