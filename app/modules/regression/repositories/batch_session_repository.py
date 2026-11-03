@@ -163,7 +163,3 @@ class BatchSessionRepository:
         result = await self.db.execute(stmt)
         await self.db.commit()
         return (result.rowcount or 0) > 0
-
-
-# Backward compatibility alias
-BenchmarkSessionRepository = BatchSessionRepository

@@ -7,7 +7,6 @@ from typing import List, Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Query, Depends
 from fastapi_injector import Injected
 
-from app.core.pagination import calculate_offset
 from app.modules.auth.core.models import User
 from app.modules.auth.dependencies import require_admin
 from app.modules.regression.schemas import (
@@ -52,7 +51,6 @@ async def get_models(
 
 
 @router.post("/models", response_model=PublicModelResponse, status_code=status.HTTP_201_CREATED)
-@router.post("/save", response_model=PublicModelResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 async def create_model_endpoint(
     payload: PublicModelCreate,
     admin: User = Depends(require_admin),
@@ -91,7 +89,6 @@ async def delete_model(
 
 
 @router.post("/models/promote", response_model=PublicModelResponse, status_code=status.HTTP_201_CREATED)
-@router.post("/models/promotions", response_model=PublicModelResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 async def promote_model_endpoint(
     payload: PromoteModelRequest,
     admin: User = Depends(require_admin),
@@ -109,8 +106,6 @@ async def promote_model_endpoint(
 # ============================================================================
 
 @router.post("/outliers", response_model=OutlierDetectionResponse)
-@router.post("/outlier-detections", response_model=OutlierDetectionResponse, include_in_schema=False)
-@router.post("/detect-outliers", response_model=OutlierDetectionResponse, include_in_schema=False)
 async def detect_outliers_endpoint(
     file: UploadFile = File(..., description="Berkas data excel (.xlsx) atau .csv"),
     fit_intercept: bool = Form(True, description="Apakah memperhitungkan intercept"),
@@ -129,7 +124,6 @@ async def detect_outliers_endpoint(
 # ============================================================================
 
 @router.post("/trainings", response_model=TrainModelResult)
-@router.post("/train", response_model=TrainModelResult, include_in_schema=False)
 async def train_model_endpoint(
     file: UploadFile = File(..., description="Berkas dataset latih (.xlsx atau .csv)"),
     estimator_type: str = Form("MM", description="Algoritma: MM, M, S, atau OLS"),
@@ -153,7 +147,6 @@ async def train_model_endpoint(
 # ============================================================================
 
 @router.post("/models/{model_id}/tests", response_model=TestModelResult)
-@router.post("/test/{model_id}", response_model=TestModelResult, include_in_schema=False)
 async def test_saved_model_by_id_endpoint(
     model_id: int,
     file: UploadFile = File(..., description="Berkas dataset uji (.xlsx atau .csv)"),
@@ -166,21 +159,7 @@ async def test_saved_model_by_id_endpoint(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
 
 
-@router.post("/test", response_model=TestModelResult, include_in_schema=False)
-async def test_saved_model_endpoint(
-    model_id: int = Form(..., description="ID model publik yang akan diuji"),
-    file: UploadFile = File(..., description="Berkas dataset uji (.xlsx atau .csv)"),
-    usecase: TestModelUseCase = Injected(TestModelUseCase)
-):
-    """Menguji akurasi model publik terhadap data uji baru (fallback form parameter)."""
-    try:
-        return await usecase.test_model(model_id=model_id, file=file)
-    except ValueError as err:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
-
-
 @router.post("/tests/custom", response_model=TestModelResult)
-@router.post("/test-custom", response_model=TestModelResult, include_in_schema=False)
 async def test_custom_parameters_endpoint(
     file: UploadFile = File(..., description="Berkas dataset uji (.xlsx atau .csv)"),
     coef_co: float = Form(..., description="Koefisien variabel CO Sentinel-5P"),
@@ -211,7 +190,6 @@ async def test_custom_parameters_endpoint(
 # ============================================================================
 
 @router.post("/estimates", response_model=SingleEstimateResponse)
-@router.post("/estimate", response_model=SingleEstimateResponse, include_in_schema=False)
 async def estimate_single_endpoint(
     payload: SingleEstimateRequest,
     usecase: EstimateUseCase = Injected(EstimateUseCase)
@@ -224,7 +202,6 @@ async def estimate_single_endpoint(
 
 
 @router.post("/estimates/batch", response_model=BatchEstimateResponse)
-@router.post("/estimate-file", response_model=BatchEstimateResponse, include_in_schema=False)
 async def estimate_file_endpoint(
     model_id: int = Form(..., description="ID model tersimpan untuk estimasi"),
     file: UploadFile = File(..., description="Berkas data satelit (.xlsx, .xls, .csv)"),
@@ -242,8 +219,6 @@ async def estimate_file_endpoint(
 # ============================================================================
 
 @router.post("/batch-sessions", response_model=BatchRunResponse, status_code=status.HTTP_201_CREATED)
-@router.post("/batch/run", response_model=BatchRunResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
-@router.post("/benchmark/run", response_model=BatchRunResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 async def run_batch_endpoint(
     file: UploadFile = File(..., description="Berkas dataset latih (.xlsx, .csv)"),
     session_name: Optional[str] = Form(None, description="Nama sesi evaluasi massal opsional"),
@@ -255,7 +230,7 @@ async def run_batch_endpoint(
     admin: User = Depends(require_admin),
     usecase: BatchEstimateUseCase = Injected(BatchEstimateUseCase),
 ):
-    """Menjalankan dan membuat sesi evaluasi massal baru (Monte Carlo Cross-Validation)."""
+    """Menjalankan dan membuat sesi evaluasi massal baru (Evaluasi Massal / Batch Cross-Validation)."""
     try:
         return await usecase.batch_estimate(
             file_path=file,
@@ -273,21 +248,16 @@ async def run_batch_endpoint(
 
 
 @router.get("/batch-sessions", response_model=List[BatchSessionResponse])
-@router.get("/batch/sessions", response_model=List[BatchSessionResponse], include_in_schema=False)
-@router.get("/benchmark/sessions", response_model=List[BatchSessionResponse], include_in_schema=False)
 async def list_batch_sessions_endpoint(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
     usecase: BatchEstimateUseCase = Injected(BatchEstimateUseCase),
 ):
     """Mengambil daftar seluruh sesi evaluasi massal sebelumnya."""
-    offset = calculate_offset(page=page, limit=limit)
-    return await usecase.list_sessions(offset=offset, limit=limit)
+    return await usecase.list_sessions(page=page, limit=limit)
 
 
 @router.get("/batch-sessions/{session_id}", response_model=BatchSessionResponse)
-@router.get("/batch/sessions/{session_id}", response_model=BatchSessionResponse, include_in_schema=False)
-@router.get("/benchmark/sessions/{session_id}", response_model=BatchSessionResponse, include_in_schema=False)
 async def get_batch_session_endpoint(
     session_id: int,
     usecase: BatchEstimateUseCase = Injected(BatchEstimateUseCase),
@@ -300,8 +270,6 @@ async def get_batch_session_endpoint(
 
 
 @router.get("/batch-sessions/{session_id}/iterations", response_model=PaginatedIterationsResponse)
-@router.get("/batch/sessions/{session_id}/iterations", response_model=PaginatedIterationsResponse, include_in_schema=False)
-@router.get("/benchmark/sessions/{session_id}/iterations", response_model=PaginatedIterationsResponse, include_in_schema=False)
 async def get_batch_iterations_endpoint(
     session_id: int,
     page: int = Query(1, ge=1),
@@ -312,12 +280,10 @@ async def get_batch_iterations_endpoint(
     usecase: BatchEstimateUseCase = Injected(BatchEstimateUseCase),
 ):
     """Mengambil data iterasi dalam satu sesi secara berpaginasi (default diurutkan test_rmse terkecil)."""
-    offset = calculate_offset(page=page, limit=limit)
     return await usecase.get_iterations_paginated(
         session_id=session_id,
-        offset=offset,
-        limit=limit,
         page=page,
+        limit=limit,
         estimator_type=estimator_type,
         sort_by=sort_by,
         sort_order=sort_order,
@@ -325,8 +291,6 @@ async def get_batch_iterations_endpoint(
 
 
 @router.delete("/batch-sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
-@router.delete("/batch/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
-@router.delete("/benchmark/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 async def delete_batch_session_endpoint(
     session_id: int,
     admin: User = Depends(require_admin),

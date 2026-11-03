@@ -2,7 +2,6 @@
 Modul perhitungan metrik evaluasi model regresi:
 - RMSE (Root Mean Squared Error)
 - MAE (Mean Absolute Error)
-- R2 (Koefisien Determinasi / R-Squared)
 """
 
 import numpy as np

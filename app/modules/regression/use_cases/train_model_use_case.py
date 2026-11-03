@@ -39,7 +39,9 @@ class TrainModelUseCase:
         """
         Melatih model regresi robust pada data latih dan menghasilkan metrik evaluasi & grafik.
         """
-        X, y, feature_cols, target_col = await parse_and_validate_file(file, require_target=True)
+        X, y, feature_cols, target_col, interpolated_count = await parse_and_validate_file(
+            file, require_target=True, return_interpolation_info=True
+        )
         if y is None:
             raise ValueError("Target y diperlukan untuk melatih model.")
 
@@ -107,4 +109,6 @@ class TrainModelUseCase:
             mae=mae,
             chart_data=chart_data,
             total_samples=len(y),
+            has_interpolated=interpolated_count > 0,
+            interpolated_count=interpolated_count,
         )

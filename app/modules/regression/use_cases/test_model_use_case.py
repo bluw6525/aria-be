@@ -40,8 +40,8 @@ class TestModelUseCase:
         """
         Mengevaluasi performa koefisien regresi terhadap berkas data uji baru.
         """
-        X_test, y_test, feature_cols, target_col = await parse_and_validate_file(
-            file, require_target=True, min_samples=1
+        X_test, y_test, feature_cols, target_col, interpolated_count = await parse_and_validate_file(
+            file, require_target=True, min_samples=1, return_interpolation_info=True
         )
         if y_test is None:
             raise ValueError("Data uji harus memiliki kolom target O3 untuk menghitung evaluasi.")
@@ -78,6 +78,8 @@ class TestModelUseCase:
             mae=mae,
             chart_data=chart_data,
             total_samples=len(y_test),
+            has_interpolated=interpolated_count > 0,
+            interpolated_count=interpolated_count,
         )
 
     async def test_model(

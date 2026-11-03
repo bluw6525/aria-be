@@ -45,8 +45,6 @@ class PublicModelRepository:
     async def create(self, model_data: dict) -> PublicModel:
         """Menyimpan model regresi publik baru ke basis data."""
         data = dict(model_data)
-        data.pop("is_default", None)
-        data.pop("train_r2", None)
 
         # Pastikan coefficients JSON terisi dan key non-kolom dibersihkan
         if "coefficients" not in data or not data["coefficients"]:
@@ -58,7 +56,11 @@ class PublicModelRepository:
             data.pop("coef_co", None)
             data.pop("coef_no2", None)
 
-        db_model = PublicModel(**data)
+        # Filter hanya kolom yang sah terdaftar pada model PublicModel
+        allowed_columns = {c.name for c in PublicModel.__table__.columns}
+        clean_data = {k: v for k, v in data.items() if k in allowed_columns}
+
+        db_model = PublicModel(**clean_data)
         self.db.add(db_model)
         await self.db.commit()
         await self.db.refresh(db_model)
@@ -68,7 +70,3 @@ class PublicModelRepository:
         """Menghapus model dari basis data."""
         await self.db.delete(model)
         await self.db.commit()
-
-
-# Backward compatibility alias
-TrainedModelRepository = PublicModelRepository

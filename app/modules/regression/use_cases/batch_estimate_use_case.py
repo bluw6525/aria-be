@@ -10,10 +10,10 @@ import numpy as np
 import pandas as pd
 from injector import inject
 
-from app.core.pagination import calculate_total_pages
+from app.core.pagination import calculate_offset, calculate_total_pages
 from app.modules.regression.core.cross_validation import (
     resolve_seeds,
-    run_monte_carlo_cv,
+    run_batch_cv,
 )
 from app.modules.regression.core.parser import (
     parse_and_validate_file,
@@ -80,8 +80,8 @@ class BatchEstimateUseCase:
 
         # 1. Baca dan validasi berkas data (Excel / CSV) via core file parser
         if feature_cols is None:
-            X, y, feature_cols, target_col = await parse_and_validate_file(
-                file_input, require_target=True, min_samples=20
+            X, y, feature_cols, target_col, interpolated_count = await parse_and_validate_file(
+                file_input, require_target=True, min_samples=20, return_interpolation_info=True
             )
         else:
             df = await asyncio.to_thread(read_uploaded_dataframe, file_input)
@@ -98,6 +98,7 @@ class BatchEstimateUseCase:
                 )
             X = clean_df[feature_cols].values.astype(float)
             y = clean_df[target_col].values.astype(float)
+            interpolated_count = 0
 
         total_samples = len(y)
 
@@ -119,7 +120,7 @@ class BatchEstimateUseCase:
 
         # 2. Eksekusi Core Evaluasi Batch secara non-blocking via thread pool
         benchmark_result = await asyncio.to_thread(
-            run_monte_carlo_cv,
+            run_batch_cv,
             X=X,
             y=y,
             feature_cols=feature_cols,
@@ -200,7 +201,7 @@ class BatchEstimateUseCase:
         if saved_session and saved_session.id:
             paginated_res = await self.get_iterations_paginated(
                 session_id=saved_session.id,
-                offset=0,
+                page=1,
                 limit=20,
                 sort_by="test_rmse",
                 sort_order="asc",
@@ -231,6 +232,8 @@ class BatchEstimateUseCase:
             summary_rows=summary_rows,
             top_iterations=top_iterations,
             seeds=benchmark_result.seeds,
+            has_interpolated=interpolated_count > 0,
+            interpolated_count=interpolated_count,
         )
 
     async def get_session(self, session_id: int) -> Optional[BatchSessionResponse]:
@@ -248,22 +251,23 @@ class BatchEstimateUseCase:
             res.best_iteration = BatchIterationResponse.model_validate(best_iter)
         return res
 
-    async def list_sessions(self, offset: int = 0, limit: int = 50) -> List[BatchSessionResponse]:
-        """Mengambil daftar seluruh sesi batch."""
+    async def list_sessions(self, page: int = 1, limit: int = 50) -> List[BatchSessionResponse]:
+        """Mengambil daftar seluruh sesi batch dengan pagination."""
+        offset = calculate_offset(page=page, limit=limit)
         sessions = await self.repository.list_sessions(offset=offset, limit=limit)
         return [BatchSessionResponse.model_validate(s) for s in sessions]
 
     async def get_iterations_paginated(
         self,
         session_id: int,
-        offset: int = 0,
-        limit: int = 20,
         page: int = 1,
+        limit: int = 20,
         estimator_type: Optional[str] = None,
         sort_by: str = "test_rmse",
         sort_order: str = "asc",
     ) -> PaginatedIterationsResponse:
         """Mengambil data iterasi dalam satu sesi secara terpaginasi."""
+        offset = calculate_offset(page=page, limit=limit)
         records, total_count = await self.repository.get_iterations_paginated(
             session_id=session_id,
             offset=offset,

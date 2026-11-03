@@ -24,6 +24,8 @@ class TrainModelResult(BaseModel):
     mae: float
     chart_data: List[RegressionPoint]
     total_samples: int
+    has_interpolated: bool = False
+    interpolated_count: int = 0
 
 
 class TestModelResult(BaseModel):
@@ -35,3 +37,5 @@ class TestModelResult(BaseModel):
     mae: float
     chart_data: List[RegressionPoint]
     total_samples: int
+    has_interpolated: bool = False
+    interpolated_count: int = 0

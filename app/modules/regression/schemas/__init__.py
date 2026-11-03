@@ -3,9 +3,6 @@ from app.modules.regression.schemas.model_schema import (
     PublicModelCreate,
     PublicModelResponse,
     PromoteModelRequest,
-    TrainedModelBase,
-    TrainedModelCreate,
-    TrainedModelResponse,
 )
 from app.modules.regression.schemas.outlier_schema import (
     OutlierCategorySummary,
@@ -31,12 +28,6 @@ from app.modules.regression.schemas.batch_schema import (
     BatchIterationResponse,
     PaginatedIterationsResponse,
     BatchRunResponse,
-    MCCVIterationResult,
-    BenchmarkSummaryRow,
-    MCCVBenchmarkResult,
-    BenchmarkSessionResponse,
-    MCCVIterationResponse,
-    BenchmarkRunResponse,
 )
 
 __all__ = [
@@ -45,9 +36,6 @@ __all__ = [
     "PublicModelCreate",
     "PublicModelResponse",
     "PromoteModelRequest",
-    "TrainedModelBase",
-    "TrainedModelCreate",
-    "TrainedModelResponse",
     # Outlier Schemas
     "OutlierCategorySummary",
     "OutlierDetectionResponse",
@@ -69,10 +57,4 @@ __all__ = [
     "BatchIterationResponse",
     "PaginatedIterationsResponse",
     "BatchRunResponse",
-    "MCCVIterationResult",
-    "BenchmarkSummaryRow",
-    "MCCVBenchmarkResult",
-    "BenchmarkSessionResponse",
-    "MCCVIterationResponse",
-    "BenchmarkRunResponse",
 ]

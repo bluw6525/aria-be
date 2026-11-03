@@ -7,8 +7,6 @@ from injector import Module, Binder
 from app.modules.regression.repositories import (
     PublicModelRepository,
     BatchSessionRepository,
-    TrainedModelRepository,
-    BenchmarkSessionRepository,
 )
 from app.modules.regression.use_cases import (
     DetectOutliersUseCase,
@@ -30,9 +28,6 @@ class RegressionContainer(Module):
         # Data Access Repository
         binder.bind(PublicModelRepository)
         binder.bind(BatchSessionRepository)
-        # Bind aliases if requested
-        binder.bind(TrainedModelRepository, to=PublicModelRepository)
-        binder.bind(BenchmarkSessionRepository, to=BatchSessionRepository)
 
         # Modular Business Logic Use Cases
         binder.bind(DetectOutliersUseCase)

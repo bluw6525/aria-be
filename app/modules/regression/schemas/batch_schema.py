@@ -103,12 +103,5 @@ class BatchRunResponse(BaseModel):
     summary_rows: List[BatchSummaryRow]
     top_iterations: List[BatchIterationResponse]
     seeds: List[int] = []
-
-
-# Backward compatibility aliases
-MCCVIterationResult = BatchIterationResult
-BenchmarkSummaryRow = BatchSummaryRow
-MCCVBenchmarkResult = BatchBenchmarkResult
-BenchmarkSessionResponse = BatchSessionResponse
-MCCVIterationResponse = BatchIterationResponse
-BenchmarkRunResponse = BatchRunResponse
+    has_interpolated: bool = False
+    interpolated_count: int = 0

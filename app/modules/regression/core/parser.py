@@ -83,31 +83,45 @@ def read_uploaded_dataframe(file: Union[UploadFile, str, Path]) -> pd.DataFrame:
     Membaca berkas (.xlsx, .xls, .csv) baik dari UploadFile maupun path lokal (str/Path)
     secara sinkron dan mengembalikan pandas DataFrame yang bersih.
     """
+    # Kasus 1: Jika input berupa path berkas lokal di harddisk (str atau Path)
     if isinstance(file, (str, Path)):
+        # Ubah menjadi objek Path absolut lengkap
         path_obj = Path(file).resolve()
+        # Validasi keberadaan fisik file di harddisk
         if not path_obj.exists():
             raise FileNotFoundError(f"Berkas dataset tidak ditemukan: {path_obj}")
+        # Ambil ekstensi berkas (misal .xlsx -> xlsx) dalam huruf kecil
         ext = path_obj.suffix.lower().lstrip(".")
+        # Target pembacaan Pandas adalah path file itu sendiri
         target = path_obj
     else:
+        # Kasus 2: Jika input berupa objek UploadFile dari request API FastAPI
         filename = getattr(file, "filename", "") or ""
+        # Ambil ekstensi dari nama file yang diunggah
         ext = filename.lower().split(".")[-1]
-        # file.file adalah file-like object (SpooledTemporaryFile) sinkron dari FastAPI / Starlette
+        # file.file adalah stream biner di memori (SpooledTemporaryFile) dari Starlette/FastAPI
         target = getattr(file, "file", file)
+        # Kembalikan kursor baca ke byte 0 agar data tidak terbaca kosong jika sudah pernah diakses
         if hasattr(target, "seek"):
             target.seek(0)
 
     try:
+        # Baca berkas Excel (.xlsx / .xls) menggunakan engine Excel Pandas
         if ext in ["xlsx", "xls"]:
             df = pd.read_excel(target)
+        # Baca berkas CSV menggunakan engine CSV Pandas
         elif ext == "csv":
             df = pd.read_csv(target)
+        # Tolak format berkas selain spreadsheet/CSV
         else:
             raise ValueError(f"Format berkas '.{ext}' tidak didukung. Harap gunakan .csv, .xls, atau .xlsx.")
     except Exception as e:
+        # Tangkap kegagalan parsing / berkas korup dan lempar sebagai ValueError yang informatif
         raise ValueError(f"Gagal membaca berkas: {str(e)}")
 
+    # Bersihkan spasi kosong di awal/akhir nama kolom (misal ' CO ' -> 'CO') agar regex cocok
     df.columns = [str(col).strip() for col in df.columns]
+    # Kembalikan tabel DataFrame Pandas yang sudah bersih
     return df
 
 
@@ -118,31 +132,47 @@ def interpolate_natural_cubic_spline(series: pd.Series) -> pd.Series:
     jika terdapat nilai missing (NaN). Nilai hasil interpolasi dibatasi >= 0 karena
     konsentrasi gas di atmosfer tidak boleh bernilai negatif.
     """
+    # Buat boolean mask untuk mendeteksi baris-baris data yang bernilai hilang (NaN)
     missing_mask = series.isna()
+
+    # Early exit: Jika data sudah lengkap tanpa ada nilai kosong sama sekali, langsung kembalikan series aslinya
     if not missing_mask.any():
         return series
 
+    # Hitung jumlah titik data riil yang valid (non-NaN)
     valid_mask = ~missing_mask
     n_valid = int(valid_mask.sum())
+
+    # Cubic Spline membutuhkan minimal 2 titik data referensi untuk membentuk kurva polinomial derajat 3
     if n_valid < 2:
-        # Cubic Spline membutuhkan minimal 2 titik untuk interpolasi.
-        # Jika data valid < 2 titik, kembalikan series apa adanya tanpa error
-        # sehingga baris data yang valid tetap dapat diproses.
+        # Jika data valid < 2 titik, interpolasi tidak memungkinkan dilakukan secara matematis;
+        # kembalikan series apa adanya agar baris yang valid tetap dapat diproses tanpa crash
         return series
 
-    # Indeks baris integer untuk interpolasi
+    # Siapkan koordinat titik acuan interpolasi:
+    # x_valid: indeks baris kronologis (waktu) dari data yang valid
+    # y_valid: nilai riil konsentrasi target O3 pada baris valid tersebut
     x_valid = series.index[valid_mask].to_numpy(dtype=float)
     y_valid = series.loc[valid_mask].to_numpy(dtype=float)
 
-    # Natural Cubic Spline mensyaratkan turunan kedua di titik ujung adalah 0
+    # Bentuk fungsi kurva Natural Cubic Spline f(x):
+    # - bc_type="natural" mensyaratkan turunan kedua di kedua titik ujung adalah 0 (f''(x_0) = f''(x_n) = 0),
+    #   mencegah kurva berosilasi liar di ujung data.
+    # - extrapolate=True memungkinkan estimasi jika posisi NaN berada di baris awal sekali atau akhir sekali.
     cs = CubicSpline(x_valid, y_valid, bc_type="natural", extrapolate=True)
 
+    # Ambil posisi baris-baris yang hilang (x_missing) dan hitung nilai estimasi berdasarkan kurva spline cs(x)
     x_missing = series.index[missing_mask].to_numpy(dtype=float)
     interpolated_values = cs(x_missing)
 
-    # Pastikan tidak ada nilai negatif untuk konsentrasi O3
+    # Buat salinan data agar tidak mengubah series asli secara langsung (immutability)
     series_clean = series.copy()
+
+    # Batasan fisik atmosfer: kadar konsentrasi gas di udara tidak mungkin bernilai negatif.
+    # Jika kurva spline melengkung ke bawah menembus nol, potong (clip) nilai minimalnya menjadi 0.0
     series_clean.loc[missing_mask] = np.clip(interpolated_values, a_min=0.0, a_max=None)
+
+    # Kembalikan data deret waktu target O3 yang telah terisi penuh dan bersih
     return series_clean
 
 
@@ -151,9 +181,12 @@ async def parse_and_validate_file(
     require_target: bool = True,
     return_indices: bool = False,
     min_samples: int = 5,
+    return_interpolation_info: bool = False,
 ) -> Union[
     Tuple[np.ndarray, Optional[np.ndarray], List[str], str],
     Tuple[np.ndarray, Optional[np.ndarray], List[str], str, np.ndarray],
+    Tuple[np.ndarray, Optional[np.ndarray], List[str], str, int],
+    Tuple[np.ndarray, Optional[np.ndarray], List[str], str, np.ndarray, int],
 ]:
     """
     Membaca dan memvalidasi berkas data latih / uji untuk model regresi.
@@ -162,6 +195,7 @@ async def parse_and_validate_file(
     - Jika terdapat missing value pada O3 SPKU, dilakukan interpolasi Natural Cubic Spline.
     - Hanya data yang memiliki O3 SPKU, NO2 satelit, dan CO satelit lengkap yang diambil.
     - Dapat mengembalikan original_indices untuk melacak nomor baris data sebelum prapemrosesan.
+    - Dapat mengembalikan interpolated_count (jumlah baris O3 hasil interpolasi spline).
 
     Returns:
     --------
@@ -170,16 +204,20 @@ async def parse_and_validate_file(
     feature_cols : List[str] nama kolom fitur terdeteksi [co_col, no2_col]
     target_col : str nama kolom target terdeteksi
     original_indices : np.ndarray (n_samples,) jika return_indices=True (0-indexed baris asli)
+    interpolated_count : int jika return_interpolation_info=True
     """
+    # Baca berkas secara asinkron di thread terpisah agar operasi I/O file tidak memblokir event loop FastAPI
     df = await asyncio.to_thread(read_uploaded_dataframe, file)
-    # Catat indeks baris asli dari file mentah sebelum pengurutan atau dropna (0-indexed)
+
+    # Catat indeks baris asli dari file mentah sebelum pengurutan atau dropna (0-indexed) untuk pelacakan baris data
     df["_raw_row_idx"] = np.arange(len(df), dtype=int)
     cols = [c for c in df.columns if c != "_raw_row_idx"]
 
-    # 1. Deteksi Kolom Fitur CO & NO2 (Satelit Sentinel-5P)
+    # 1. Deteksi Kolom Fitur CO & NO2 (Satelit Sentinel-5P) menggunakan pola regex
     co_col = match_column(cols, CO_PATTERNS)
     no2_col = match_column(cols, NO2_PATTERNS)
 
+    # Validasi keberadaan kedua kolom fitur utama; jika salah satu tidak ada, tolak dengan pesan error informatif
     if not co_col or not no2_col:
         missing = []
         if not co_col:
@@ -195,26 +233,35 @@ async def parse_and_validate_file(
     feature_cols = [co_col, no2_col]
     target_col = ""
 
-    # 2. Urutkan secara kronologis jika ada kolom penanda waktu/tanggal
+    # 2. Urutkan data secara kronologis jika berkas menyertakan kolom penanda tanggal / waktu
     label_col = match_column(cols, LABEL_PATTERNS)
     if label_col:
         try:
+            # Parse kolom tanggal; string yang tidak valid diubah menjadi NaT (Not a Time)
             parsed_dates = pd.to_datetime(df[label_col], errors="coerce")
+
+            # Ambang batas > 50%: memastikan kolom tersebut benar-benar deret tanggal valid (mencegah false positive)
             if parsed_dates.notna().sum() > 0.5 * len(df):
+                # Urutkan baris dari tanggal terlama ke terbaru (ascending), baris NaT ditempatkan di paling akhir
                 df = (
                     df.assign(_temp_sort_date=parsed_dates)
                     .sort_values(by="_temp_sort_date", na_position="last")
                     .drop(columns=["_temp_sort_date"])
                 )
         except Exception:
+            # Fail-safe: jika parsing tanggal gagal, pertahankan urutan asli berkas tanpa menghentikan proses
             pass
 
+    # Reset indeks baris agar berurutan kembali 0..n-1 setelah diurutkan
+    # Wajib dilakukan agar CubicSpline pada langkah berikutnya tidak error (CubicSpline mensyaratkan sumbu x strictly increasing)
     df = df.reset_index(drop=True)
 
-    # 3. Deteksi & Proses Kolom Target O3 SPKU jika diperlukan (Latih & Uji)
+    # 3. Deteksi & Proses Kolom Target O3 SPKU jika diperlukan (untuk alur Training & Testing)
     if require_target:
+        # Cari kolom target O3 SPKU berdasarkan pola regex
         target_col = match_column(cols, O3_PATTERNS)
 
+        # Validasi keberadaan kolom target; wajib ada untuk proses latih/uji
         if not target_col:
             raise ValueError(
                 f"Kolom target O3 SPKU / Ozon tidak ditemukan dalam berkas. "
@@ -222,61 +269,84 @@ async def parse_and_validate_file(
                 f"Pastikan berkas data latih atau uji menyertakan kolom O3 SPKU."
             )
 
-        # Hanya ambil kolom CO satelit, NO2 satelit, O3 SPKU, dan indeks baris asli
+        # Buat DataFrame kerja dan konversi nilai kolom fitur & target menjadi numerik murni (string diubah jadi NaN)
         work_df = pd.DataFrame(index=df.index)
         work_df[co_col] = pd.to_numeric(df[co_col], errors="coerce")
         work_df[no2_col] = pd.to_numeric(df[no2_col], errors="coerce")
         work_df[target_col] = pd.to_numeric(df[target_col], errors="coerce")
         work_df["_raw_row_idx"] = df["_raw_row_idx"]
 
-        # Interpolasi Natural Cubic Spline jika ada missing value pada target O3
-        work_df[target_col] = interpolate_natural_cubic_spline(work_df[target_col])
+        # Tandai baris yang awalnya missing value pada kolom target O3 sebelum interpolasi
+        was_o3_missing = work_df[target_col].isna()
 
-        # Hanya ambil baris yang memiliki nilai lengkap O3 SPKU, NO2 satelit, dan CO satelit
-        clean_df = work_df[[co_col, no2_col, target_col, "_raw_row_idx"]].dropna()
+        # Interpolasi Natural Cubic Spline untuk mengisi nilai hilang (missing value/NaN) pada target O3 secara mulus
+        work_df[target_col] = interpolate_natural_cubic_spline(work_df[target_col])
+        work_df["_was_o3_interpolated"] = was_o3_missing
+
+        # Hapus baris yang masih mengandung nilai kosong (NaN/null) pada fitur atau target
+        clean_df = work_df[[co_col, no2_col, target_col, "_raw_row_idx", "_was_o3_interpolated"]].dropna()
+
+        # Pastikan seluruh nilai numerik berhingga (bukan Inf atau -Inf)
         clean_df = clean_df[
             np.isfinite(clean_df[co_col])
             & np.isfinite(clean_df[no2_col])
             & np.isfinite(clean_df[target_col])
         ]
 
+        # Validasi kecukupan jumlah sampel data bersih terhadap batas minimum yang diminta
         if len(clean_df) < min_samples:
-            sample_label = "1 baris" if min_samples == 1 else f"{min_samples} baris"
             raise ValueError(
                 f"Jumlah baris data valid terlalu sedikit ({len(clean_df)} baris). "
-                f"Minimal {sample_label} data yang memiliki O3 SPKU, NO2 satelit, dan CO satelit lengkap."
+                f"Minimal {min_samples} baris data yang memiliki O3 SPKU, NO2 satelit, dan CO satelit lengkap."
             )
 
+        # Hitung jumlah baris data bersih yang nilai target O3-nya merupakan hasil interpolasi
+        interpolated_count = int(clean_df["_was_o3_interpolated"].sum())
+
+        # Konversi data bersih ke NumPy ndarray untuk komputasi matriks regresi
         X = clean_df[feature_cols].to_numpy(dtype=float)
         y = clean_df[target_col].to_numpy(dtype=float)
         orig_indices = clean_df["_raw_row_idx"].to_numpy(dtype=int)
 
-        if return_indices:
+        # Kembalikan tuple data sesuai parameter opsi yang diminta caller
+        if return_indices and return_interpolation_info:
+            return X, y, feature_cols, target_col, orig_indices, interpolated_count
+        elif return_indices:
             return X, y, feature_cols, target_col, orig_indices
+        elif return_interpolation_info:
+            return X, y, feature_cols, target_col, interpolated_count
         return X, y, feature_cols, target_col
 
     else:
-        # Jika hanya membutuhkan fitur (misal inferensi tanpa target)
+        # Alur khusus tanpa target (misal untuk inferensi estimasi masa depan / unlabelled data)
         work_df = pd.DataFrame(index=df.index)
         work_df[co_col] = pd.to_numeric(df[co_col], errors="coerce")
         work_df[no2_col] = pd.to_numeric(df[no2_col], errors="coerce")
         work_df["_raw_row_idx"] = df["_raw_row_idx"]
 
+        # Hapus baris yang memiliki nilai kosong pada fitur input
         clean_df = work_df[[co_col, no2_col, "_raw_row_idx"]].dropna()
         clean_df = clean_df[
             np.isfinite(clean_df[co_col]) & np.isfinite(clean_df[no2_col])
         ]
 
+        # Validasi minimal ada 1 baris data fitur yang valid untuk diestimasi
         if len(clean_df) < 1:
             raise ValueError(
                 "Tidak ada data baris valid yang memiliki nilai CO satelit dan NO2 satelit lengkap."
             )
 
+        # Konversi fitur ke NumPy ndarray
         X = clean_df[feature_cols].to_numpy(dtype=float)
         orig_indices = clean_df["_raw_row_idx"].to_numpy(dtype=int)
 
-        if return_indices:
+        # Kembalikan fitur X dengan target berupa None
+        if return_indices and return_interpolation_info:
+            return X, None, feature_cols, "", orig_indices, 0
+        elif return_indices:
             return X, None, feature_cols, "", orig_indices
+        elif return_interpolation_info:
+            return X, None, feature_cols, "", 0
         return X, None, feature_cols, ""
 
 
@@ -374,16 +444,27 @@ async def parse_batch_estimate_file(
     return co_vals, no2_vals, actual_vals, labels
 
 
-def parse_raw_seeds(seeds: Optional[Union[str, List[int]]]) -> Optional[List[int]]:
+def parse_raw_seeds(seeds: Optional[Union[str, List[Union[int, str]]]]) -> Optional[List[int]]:
     """Mengekstrak list integer random seeds dari string (spasi/koma/JSON) atau list."""
     if not seeds:
         return None
-    if isinstance(seeds, list):
-        return [int(s) for s in seeds]
-    if isinstance(seeds, str) and seeds.strip():
-        raw_seeds = seeds.replace("[", "").replace("]", "").replace(",", " ").split()
-        parsed = [int(s) for s in raw_seeds if s.lstrip("-").isdigit()]
-        return parsed or None
+
+    # 1. Jika berupa string teks, bersihkan format kurung/koma lalu pecah menjadi list
+    if isinstance(seeds, str):
+        if not seeds.strip():
+            return None
+        seeds = seeds.replace("[", "").replace("]", "").replace(",", " ").split()
+
+    # 2. Parse elemen list/tuple secara aman dan abaikan nilai non-numerik
+    if isinstance(seeds, (list, tuple)):
+        cleaned = []
+        for s in seeds:
+            try:
+                cleaned.append(int(s))
+            except (ValueError, TypeError):
+                continue
+        return cleaned or None
+
     return None
 
 

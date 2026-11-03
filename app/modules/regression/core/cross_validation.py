@@ -18,8 +18,6 @@ from app.modules.regression.schemas import (
     BatchIterationResult,
     BatchSummaryRow,
     BatchBenchmarkResult,
-    MCCVIterationResult,
-    MCCVBenchmarkResult,
 )
 
 
@@ -68,7 +66,7 @@ def resolve_seeds(seeds: Optional[Union[str, List[int]]], n_splits: int) -> List
     return cleaned_seeds
 
 
-def run_monte_carlo_cv(
+def run_batch_cv(
     X: np.ndarray,
     y: np.ndarray,
     feature_cols: List[str],
@@ -186,22 +184,9 @@ def run_monte_carlo_cv(
 
             # Format intercept dan koefisien standar {"CO": ..., "NO2": ...}
             raw_coefs = model.coef_ if fit_intercept else model.params_
-            val_co = 0.0
-            val_no2 = 0.0
-            for c_idx, col in enumerate(feature_cols):
-                c_low = str(col).lower()
-                if "co" in c_low and "no2" not in c_low and "score" not in c_low:
-                    val_co = float(raw_coefs[c_idx])
-                elif "no2" in c_low:
-                    val_no2 = float(raw_coefs[c_idx])
-            if val_co == 0.0 and len(raw_coefs) >= 1:
-                val_co = float(raw_coefs[0])
-            if val_no2 == 0.0 and len(raw_coefs) >= 2:
-                val_no2 = float(raw_coefs[1])
-
             coef_dict = {
-                "CO": val_co,
-                "NO2": val_no2,
+                "CO": float(raw_coefs[0]) if len(raw_coefs) >= 1 else 0.0,
+                "NO2": float(raw_coefs[1]) if len(raw_coefs) >= 2 else 0.0,
             }
 
             if fit_intercept:

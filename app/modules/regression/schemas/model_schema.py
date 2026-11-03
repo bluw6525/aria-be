@@ -57,9 +57,3 @@ class PromoteModelRequest(BaseModel):
     """
     iteration_id: int = Field(..., description="ID dari iterasi model (batch_iterations) yang ingin dipromosikan")
     model_name: str = Field(..., min_length=2, max_length=100, description="Nama unik model tersimpan")
-
-
-# Backward compatibility aliases
-TrainedModelBase = PublicModelBase
-TrainedModelCreate = PublicModelCreate
-TrainedModelResponse = PublicModelResponse
