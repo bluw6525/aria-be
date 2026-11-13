@@ -6,7 +6,6 @@ from app.modules.regression.core.cross_validation import (
 from app.modules.regression.core.parser import (
     match_column,
     parse_and_validate_file,
-    parse_batch_estimate_file,
     read_uploaded_dataframe,
 )
 from app.modules.regression.core.ispu import get_ispu_category
@@ -35,5 +34,4 @@ __all__ = [
     "match_column",
     "read_uploaded_dataframe",
     "parse_and_validate_file",
-    "parse_batch_estimate_file",
 ]

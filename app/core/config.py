@@ -23,6 +23,13 @@ class Settings:
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", str(60 * 24 * 7)))  # 7 hari
 
+    # Konfigurasi Google Earth Engine (GEE)
+    GEE_PROJECT_ID: str = os.getenv("GEE_PROJECT_ID", "aria-gee-project")
+    GEE_KEY_FILE: str | None = os.getenv("GEE_KEY_FILE", None)
+    SATELLITE_SCALE: float = float(os.getenv("SATELLITE_SCALE", "1113.2"))
+
+
+
 
 # Instance tunggal Settings yang siap diimpor dan digunakan di seluruh bagian aplikasi
 settings = Settings()

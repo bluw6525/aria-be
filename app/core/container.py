@@ -4,9 +4,10 @@ Menyediakan integrasi murni antara Injector (IoC Container) dan FastAPI.
 """
 
 from fastapi_injector import Injected, request_scope
-from injector import Module, provider, singleton
+from injector import Module, Binder, provider, singleton
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.core.database import AsyncSessionLocal
+from app.core.gee import GEEClient
 
 
 class DatabaseModule(Module):
@@ -33,3 +34,10 @@ class DatabaseModule(Module):
         return session_maker()
 
 
+class GEEModule(Module):
+    """
+    Modul injector untuk inisialisasi koneksi Google Earth Engine (GEE) secara singleton.
+    """
+
+    def configure(self, binder: Binder) -> None:
+        binder.bind(GEEClient, to=GEEClient, scope=singleton)

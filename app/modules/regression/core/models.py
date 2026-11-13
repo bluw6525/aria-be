@@ -112,6 +112,9 @@ class PublicModel(Base):
     train_rmse = Column(Float, nullable=False)
     train_mae = Column(Float, nullable=False)
 
+    # Status Model Aktif (hanya 1 model yang aktif untuk estimasi default)
+    is_active = Column(Boolean, default=False, nullable=False, server_default="0", index=True)
+
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=func.now())
 
     @property

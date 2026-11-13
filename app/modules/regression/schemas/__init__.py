@@ -14,11 +14,13 @@ from app.modules.regression.schemas.training_schema import (
     TestModelResult,
 )
 from app.modules.regression.schemas.estimate_schema import (
-    SingleEstimateRequest,
-    SingleEstimateResponse,
     BatchEstimatePoint,
     BatchEstimateSummary,
     BatchEstimateResponse,
+    SatelliteEstimateRequest,
+    MapOverviewItem,
+    MapOverviewResponse,
+    ForecastItem,
 )
 from app.modules.regression.schemas.batch_schema import (
     BatchIterationResult,
@@ -44,12 +46,14 @@ __all__ = [
     "TrainModelResult",
     "TestModelResult",
     # Estimation Schemas
-    "SingleEstimateRequest",
-    "SingleEstimateResponse",
     "BatchEstimatePoint",
     "BatchEstimateSummary",
     "BatchEstimateResponse",
-    # Benchmark / Batch Schemas
+    "SatelliteEstimateRequest",
+    "MapOverviewItem",
+    "MapOverviewResponse",
+    "ForecastItem",
+    # Batch Run Schemas
     "BatchIterationResult",
     "BatchSummaryRow",
     "BatchBenchmarkResult",

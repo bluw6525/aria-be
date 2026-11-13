@@ -16,9 +16,9 @@ from app.modules.regression.schemas import (
     OutlierDetectionResponse,
     TrainModelResult,
     TestModelResult,
-    SingleEstimateRequest,
-    SingleEstimateResponse,
     BatchEstimateResponse,
+    SatelliteEstimateRequest,
+    MapOverviewResponse,
     BatchSessionResponse,
     BatchIterationResponse,
     PaginatedIterationsResponse,
@@ -84,6 +84,19 @@ async def delete_model(
     """Menghapus model dari basis data."""
     try:
         await usecase.delete_model(model_id)
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(err))
+
+
+@router.post("/models/{model_id}/activate", response_model=PublicModelResponse)
+async def activate_model_endpoint(
+    model_id: int,
+    admin: User = Depends(require_admin),
+    usecase: ModelUseCase = Injected(ModelUseCase),
+):
+    """Mengaktifkan satu model spesifik dan menonaktifkan model publik lainnya."""
+    try:
+        return await usecase.activate_model(model_id)
     except ValueError as err:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(err))
 
@@ -189,29 +202,34 @@ async def test_custom_parameters_endpoint(
 # 5. Endpoint Inferensi Estimasi (/estimates)
 # ============================================================================
 
-@router.post("/estimates", response_model=SingleEstimateResponse)
-async def estimate_single_endpoint(
-    payload: SingleEstimateRequest,
+@router.post("/estimates/satellite", response_model=BatchEstimateResponse)
+async def estimate_satellite_endpoint(
+    payload: SatelliteEstimateRequest,
     usecase: EstimateUseCase = Injected(EstimateUseCase)
 ):
-    """Melakukan estimasi instan nilai O3 dan kategori ISPU dari nilai CO & NO2 tunggal."""
+    """Melakukan estimasi O3 dan kategori ISPU langsung dari data satelit Sentinel-5P."""
     try:
-        return await usecase.estimate_single(payload)
+        return await usecase.estimate_from_satellite(payload)
     except ValueError as err:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
+    except Exception as err:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(err))
 
 
-@router.post("/estimates/batch", response_model=BatchEstimateResponse)
-async def estimate_file_endpoint(
-    model_id: int = Form(..., description="ID model tersimpan untuk estimasi"),
-    file: UploadFile = File(..., description="Berkas data satelit (.xlsx, .xls, .csv)"),
+@router.get("/estimates/map-overview", response_model=MapOverviewResponse)
+async def get_map_overview_endpoint(
+    start_date: str = Query(..., description="Tanggal awal (YYYY-MM-DD)"),
+    end_date: str = Query(..., description="Tanggal akhir (YYYY-MM-DD)"),
     usecase: EstimateUseCase = Injected(EstimateUseCase)
 ):
-    """Melakukan estimasi O3 dan kategori ISPU dari berkas satelit secara batch."""
+    """Mengambil rangkuman estimasi ISPU dan kategori untuk 5 wilayah untuk peta interaktif."""
     try:
-        return await usecase.estimate_from_file(model_id=model_id, file=file)
+        return await usecase.get_map_overview(start_date=start_date, end_date=end_date)
     except ValueError as err:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
+    except Exception as err:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(err))
+
 
 
 # ============================================================================

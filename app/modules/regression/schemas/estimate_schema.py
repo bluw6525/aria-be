@@ -6,19 +6,15 @@ from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
 
 
-class SingleEstimateRequest(BaseModel):
-    co: float = Field(..., description="Konsentrasi CO dari Sentinel-5P (mol/m^2)")
-    no2: float = Field(..., description="Konsentrasi NO2 dari Sentinel-5P (mol/m^2)")
-    model_id: Optional[int] = Field(None, description="ID model tersimpan (opsional, jika None pakai default)")
-
-
-class SingleEstimateResponse(BaseModel):
-    model_id: Optional[int] = None
-    model_name: str
-    estimator_type: str
-    equation: Optional[str] = None
+class ForecastItem(BaseModel):
+    day_offset: int
+    date: str
+    label: str
+    co: float
+    no2: float
     estimated_value: float
     ispu_category: str
+    delta: float
 
 
 class BatchEstimatePoint(BaseModel):
@@ -27,8 +23,10 @@ class BatchEstimatePoint(BaseModel):
     co: float
     no2: float
     actual_value: Optional[float] = None
-    estimated_value: float
-    ispu_category: str
+    estimated_value: Optional[float] = None
+    ispu_category: Optional[str] = None
+    is_forecast: bool = False
+    forecast_value: Optional[float] = None
 
 
 class BatchEstimateSummary(BaseModel):
@@ -42,6 +40,27 @@ class BatchEstimateResponse(BaseModel):
     model_id: int
     model_name: str
     estimator_type: str
-    equation: str
     chart_data: List[BatchEstimatePoint]
     summary: BatchEstimateSummary
+    forecast_days: Optional[List[ForecastItem]] = None
+
+
+class SatelliteEstimateRequest(BaseModel):
+    region: str = Field(..., description="Kode wilayah (misal: 'jakarta_barat')")
+    start_date: str = Field(..., description="Tanggal awal (YYYY-MM-DD)")
+    end_date: str = Field(..., description="Tanggal akhir (YYYY-MM-DD)")
+
+
+class MapOverviewItem(BaseModel):
+    region: str
+    region_name: str
+    estimated_ispu: Optional[float] = None
+    ispu_category: Optional[str] = None
+    observation_date: Optional[str] = None
+    is_fallback: bool = False
+
+
+class MapOverviewResponse(BaseModel):
+    start_date: str
+    end_date: str
+    regions: List[MapOverviewItem]

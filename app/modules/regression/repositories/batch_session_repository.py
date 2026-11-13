@@ -62,19 +62,6 @@ class BatchSessionRepository:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_iterations_by_session_id(
-        self, session_id: int, estimator_type: Optional[str] = None
-    ) -> List[BatchIteration]:
-        """
-        Mengambil seluruh record iterasi dalam satu sesi tertentu.
-        """
-        stmt = select(BatchIteration).filter(BatchIteration.session_id == session_id)
-        if estimator_type:
-            stmt = stmt.filter(BatchIteration.estimator_type == estimator_type)
-        stmt = stmt.order_by(BatchIteration.id.asc())
-        result = await self.db.execute(stmt)
-        return list(result.scalars().all())
-
     async def get_iterations_paginated(
         self,
         session_id: int,

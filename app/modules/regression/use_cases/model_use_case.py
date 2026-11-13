@@ -44,6 +44,13 @@ class ModelUseCase:
             raise ValueError(f"Model dengan ID {model_id} tidak ditemukan.")
         return PublicModelResponse.model_validate(model)
 
+    async def activate_model(self, model_id: int) -> PublicModelResponse:
+        """Mengaktifkan model tertentu sebagai model default sistem."""
+        model = await self.repository.set_active(model_id)
+        if not model:
+            raise ValueError(f"Model dengan ID {model_id} tidak ditemukan.")
+        return PublicModelResponse.model_validate(model)
+
     async def save_model(self, payload: PublicModelCreate) -> PublicModelResponse:
         """Menyimpan model pelatihan baru ke database."""
         existing = await self.repository.get_by_name(payload.name)

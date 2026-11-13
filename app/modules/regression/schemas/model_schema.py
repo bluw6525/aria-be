@@ -17,6 +17,7 @@ class PublicModelBase(BaseModel):
     scale: Optional[float] = Field(None, description="Estimasi skala residual sigma")
     train_rmse: float = Field(..., description="RMSE pada data latih")
     train_mae: float = Field(..., description="MAE pada data latih")
+    is_active: bool = Field(False, description="Status apakah model aktif untuk estimasi ISPU default")
 
     @model_validator(mode="after")
     def sync_coefficients(self) -> "PublicModelBase":

@@ -20,3 +20,8 @@ wheels/
 *.db-shm
 *.sqlite
 *.sqlite3
+
+# Google Cloud Service Account Keys
+*service_account*.json
+sentinel-*.json
+*.key.json
